@@ -15,9 +15,16 @@ export function activate(context: vscode.ExtensionContext) {
 	// The commandId parameter must match the command field in package.json
 	var disposable = vscode.commands.registerCommand('extension.sayHello', () => {
 		// The code you place here will be executed every time your command is executed
+		var editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return; // No open text editor
+		}
+		
+		var selection = editor.selection;
+		var text = editor.document.getText(selection);
 
 		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World!');
+		vscode.window.showInformationMessage('Selected characters: ' + text.length);
 	});
 	
 	context.subscriptions.push(disposable);
