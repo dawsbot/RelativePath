@@ -18,31 +18,46 @@ export function activate(context: vscode.ExtensionContext) {
 		// The code you place here will be executed every time your command is executed
 		var editor = vscode.window.activeTextEditor;
 		if (!editor) {
+			vscode.window.showInformationMessage("You need to have a file loaded.");	
 			return; // No open text editor
 		}
 		
+		// Get the documents
 		let documents: Thenable<vscode.Uri[]> = vscode.workspace.findFiles('**/**', '**/node_modules/**', 10);
 		documents.then(
-			(value: vscode.Uri[]) => {
-				if (value) {
-					let paths: vscode.QuickPickItem[] = value.map((val: vscode.Uri) => {
-						let item: vscode.QuickPickItem = { description: val.fsPath, label: val.fsPath.split(path.sep).pop() };
-						return item;
-					});
-					vscode.window.showQuickPick(paths, { matchOnDescription: true, placeHolder: "Filename" });
-				} else {
-					vscode.window.showInformationMessage("No files to show.");
-				}
-			},
-			(rejected: any) => {
-				console.log("Rejected message: " + rejected);
-			}
+			showQuickPick
 		);
 		
-		var uri = vscode.workspace.asRelativePath(editor.document.uri);
-
-		// Display a message box to the user
-		// vscode.window.showInformationMessage('Current uri: ' + uri);
+		// Show dropdown editor
+		function showQuickPick(items: vscode.Uri[]): void {
+			if (items) {
+				let paths: vscode.QuickPickItem[] = items.map((val: vscode.Uri) => {
+					let item: vscode.QuickPickItem = { description: val.fsPath, label: val.fsPath.split(path.sep).pop() };
+					return item;
+				});
+				
+				let pickResult: Thenable<vscode.QuickPickItem>;
+				pickResult = vscode.window.showQuickPick(paths, { matchOnDescription: true, placeHolder: "Filename" });
+				pickResult.then(getRelativePath);
+			} else {
+				vscode.window.showInformationMessage("No files to show.");
+			}
+		}
+		
+		// Get the picked item
+		function getRelativePath(item: vscode.QuickPickItem): void {
+			if (item) {
+				const targetPath = item.description;
+				const currentItemPath = editor.document.fileName;
+				let relativeUrl: string = path.relative(currentItemPath, targetPath);
+				vscode.window.activeTextEditor.edit(
+					(editBuilder: vscode.TextEditorEdit) => {
+						let position: vscode.Position = vscode.window.activeTextEditor.selection.end;
+						editBuilder.insert(position, relativeUrl);
+					}	
+				);
+			}
+		}
 	});
 	
 	context.subscriptions.push(disposable);
