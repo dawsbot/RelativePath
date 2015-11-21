@@ -9,6 +9,7 @@
 	"categories": [
 		"Other"
 	],
+	"displayName": "Relative Path",
 	"activationEvents": [
 		"onCommand:extension.sayHello"
 	],
@@ -19,6 +20,7 @@
 			"title": "Hello World"
 		}]
 	},
+	"keywords": ["relative", "path", "url", "file"],
 	"scripts": {
 		"vscode:prepublish": "node ./node_modules/vscode/bin/compile",
 		"compile": "node ./node_modules/vscode/bin/compile -watch -p ./"
