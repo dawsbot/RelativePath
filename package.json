@@ -2,7 +2,7 @@
 	"name": "RelativePath",
 	"description": "Get relative url paths from files in the current workspace.",
 	"version": "0.0.1",
-	"publisher": "jawerne",
+	"publisher": "jakob101",
 	"engines": {
 		"vscode": "^0.10.1"
 	},
