@@ -14,7 +14,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with  registerCommand
 	// The commandId parameter must match the command field in package.json
-	var disposable = vscode.commands.registerCommand('extension.sayHello', () => {
+	var disposable = vscode.commands.registerCommand('extension.relativePath', () => {
 		// The code you place here will be executed every time your command is executed
 		var editor = vscode.window.activeTextEditor;
 		if (!editor) {
@@ -23,7 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 		
 		// Get the documents
-		let documents: Thenable<vscode.Uri[]> = vscode.workspace.findFiles('**/**', '**/node_modules/**', 10);
+		let documents: Thenable<vscode.Uri[]> = vscode.workspace.findFiles('**/**', '', 10);
 		documents.then(
 			showQuickPick
 		);

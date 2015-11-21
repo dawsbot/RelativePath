@@ -1,6 +1,6 @@
 {
 	"name": "RelativePath",
-	"description": "Get relative url paths from files in the current context",
+	"description": "Get relative url paths from files in the current workspace.",
 	"version": "0.0.1",
 	"publisher": "jawerne",
 	"engines": {
@@ -11,18 +11,18 @@
 	],
 	"displayName": "Relative Path",
 	"activationEvents": [
-		"onCommand:extension.sayHello"
+		"onCommand:extension.relativePath"
 	],
 	"main": "./out/src/extension",
 	"contributes": {
 		"commands": [{
-			"command": "extension.sayHello",
-			"title": "Hello World"
+			"command": "extension.relativePath",
+			"title": "Relative Path"
 		}],
 		"keybindings": [{
-			"command": "extension.sayHello",
-			"key": "ctrl+f1",
-			"mac": "cmd+f1",
+			"command": "extension.relativePath",
+			"key": "ctrl+shift+p",
+			"mac": "cmd+shift+p",
 			"when": "editorTextFocus"
 		}]
 	},
