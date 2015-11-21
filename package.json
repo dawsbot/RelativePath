@@ -18,6 +18,12 @@
 		"commands": [{
 			"command": "extension.sayHello",
 			"title": "Hello World"
+		}],
+		"keybindings": [{
+			"command": "extension.sayHello",
+			"key": "ctrl+f1",
+			"mac": "cmd+f1",
+			"when": "editorTextFocus"
 		}]
 	},
 	"keywords": ["relative", "path", "url", "file"],

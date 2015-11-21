@@ -20,11 +20,10 @@ export function activate(context: vscode.ExtensionContext) {
 			return; // No open text editor
 		}
 		
-		var selection = editor.selection;
-		var text = editor.document.getText(selection);
+		var uri = editor.document.uri;
 
 		// Display a message box to the user
-		vscode.window.showInformationMessage('Selected characters: ' + text.length);
+		vscode.window.showInformationMessage('Current uri: ' + uri);
 	});
 	
 	context.subscriptions.push(disposable);
