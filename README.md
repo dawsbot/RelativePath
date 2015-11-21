@@ -1,11 +1,15 @@
-# README
 ## Relative path support for Visual Studio Code
 Now you can get the relative path to any file in the workspace.
 
-Just press Ctrl+Shift+P (Mac:Cmd+Shift+P) and select a file.
+Just press `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`) and select a file.
+Alternatively, you can press open command palette `F1` and search for `Relative Path`.
 
-* Split the editor (`Cmd+\` on OSX or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on OSX or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (OSX) to see a list of Markdown snippets
+<iframe src="//giphy.com/embed/3oEduJ5iRksPxpwoXC" width="480" height="278" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>
 
-** Enjoy!**
+## How to use
+---
+First, you will need to install Visual Studio Code 0.10. In the command palette (`Ctrl-Shift-P` or `Cmd-Shift-P`) select `Install Extension` and choose `RelativePath`.
+
+## Licence
+---
+[MIT](https://github.com/Microsoft/vscode-go/blob/master/LICENSE)

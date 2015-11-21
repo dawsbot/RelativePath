@@ -21,8 +21,8 @@
 		}],
 		"keybindings": [{
 			"command": "extension.relativePath",
-			"key": "ctrl+shift+p",
-			"mac": "cmd+shift+p",
+			"key": "ctrl+shift+h",
+			"mac": "cmd+shift+h",
 			"when": "editorTextFocus"
 		}]
 	},
