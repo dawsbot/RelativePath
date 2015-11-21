@@ -9,7 +9,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "RelativePath" is now active!'); 
+	console.log('The extension "RelativePath" is now active!'); 
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with  registerCommand
@@ -38,14 +38,14 @@ export function activate(context: vscode.ExtensionContext) {
 				
 				let pickResult: Thenable<vscode.QuickPickItem>;
 				pickResult = vscode.window.showQuickPick(paths, { matchOnDescription: true, placeHolder: "Filename" });
-				pickResult.then(getRelativePath);
+				pickResult.then(returnRelativeLink);
 			} else {
 				vscode.window.showInformationMessage("No files to show.");
 			}
 		}
 		
 		// Get the picked item
-		function getRelativePath(item: vscode.QuickPickItem): void {
+		function returnRelativeLink(item: vscode.QuickPickItem): void {
 			if (item) {
 				const targetPath = item.description;
 				const currentItemPath = editor.document.fileName;
