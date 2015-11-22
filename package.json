@@ -1,12 +1,16 @@
 {
 	"name": "RelativePath",
 	"description": "Get relative url paths from files in the current workspace.",
-	"version": "0.0.1",
+	"version": "0.7.0",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/jakob101/RelativePath"
 	},
 	"publisher": "jakob101",
+	"galleryBanner": {
+		"color": "#373277",
+		"theme": "dark"	
+	},
 	"engines": {
 		"vscode": "^0.10.1"
 	},
@@ -29,7 +33,18 @@
 			"key": "ctrl+shift+h",
 			"mac": "cmd+shift+h",
 			"when": "editorTextFocus"
-		}]
+		}],
+		"configuration": {
+			"title": "RelativePath extension configuration",
+			"type": "object",
+			"properties": {
+				"relativePath.ignore": {
+					"type": "string[]",
+					"default": ["**/node_modules/**","**/*.dll","**/obj/**","**/objd/**"],
+					"description": "An array of glob keys to ignore when searching."
+				}
+			}
+		}
 	},
 	"icon": "icon.png",
 	"keywords": ["relative", "path", "url", "file"],

@@ -12,7 +12,9 @@ export function activate(context: vscode.ExtensionContext) {
 	// This line of code will only be executed once when your extension is activated
 	console.log('The extension "RelativePath" is now active!'); 
 	const workspacePath: string = vscode.workspace.rootPath.replace(/\\/g, "/");
+	var configuration = vscode.workspace.getConfiguration("relativePath");
 	var editor = vscode.window.activeTextEditor;
+	let emptyItem: vscode.QuickPickItem = { label: "", description: "No files found" };
 	let items: string[] = null;
 	var myGlob = null;
 	let paused: boolean = false;
@@ -20,9 +22,9 @@ export function activate(context: vscode.ExtensionContext) {
 	function myActivate() {
 		
 		// Show loading info box
-		let info = vscode.window.showQuickPick([], { matchOnDescription: false, placeHolder: "Finding files... Please wait. (Press escape to cancel)" });
+		let info = vscode.window.showQuickPick([emptyItem], { matchOnDescription: false, placeHolder: "Finding files... Please wait. (Press escape to cancel)" });
 		info.then(
-			(value?: string) => {
+			(value?: any) => {
 				myGlob.pause();
 				paused = true;
 			},
@@ -38,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 			myGlob.resume();
 		} else {
 			myGlob = new Glob(workspacePath + "/**/*.*", 
-						{ ignore: ["**/node_modules/**","**/*.dll","**/obj/**","**/objd/**"] }, 
+						{ ignore: configuration.get("ignore") }, 
 						function(err, files) {
 								if (err) {
 									return;
@@ -47,6 +49,9 @@ export function activate(context: vscode.ExtensionContext) {
 								items = files;
 								vscode.commands.executeCommand('extension.relativePath');
 					});	
+			myGlob.on("end", function() {
+				paused = false;	
+			})
 		}
 	}
 	
