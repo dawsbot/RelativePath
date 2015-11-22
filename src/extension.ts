@@ -2,6 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode'; 
 var path = require('path');
+var glob = require('glob');
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -22,17 +23,22 @@ export function activate(context: vscode.ExtensionContext) {
 			return; // No open text editor
 		}
 		
-		// Get the documents
-		let documents: Thenable<vscode.Uri[]> = vscode.workspace.findFiles('**/**', '', 10);
-		documents.then(
-			showQuickPick
-		);
+		const workspacePath: string = vscode.workspace.rootPath.replace(/\\/g, "/");
+		console.log(workspacePath);
+		glob(workspacePath + "/**/*.*", { ignore: ["**/node_modules/**","**/*.dll","**/obj/**","**/objd/**"] }, function(err, files) {
+			if (err) {
+				return;
+			}
+			
+			console.log(files.length);
+			showQuickPick(files);
+		});
 		
 		// Show dropdown editor
-		function showQuickPick(items: vscode.Uri[]): void {
+		function showQuickPick(items: string[]): void {
 			if (items) {
-				let paths: vscode.QuickPickItem[] = items.map((val: vscode.Uri) => {
-					let item: vscode.QuickPickItem = { description: val.fsPath, label: val.fsPath.split(path.sep).pop() };
+				let paths: vscode.QuickPickItem[] = items.map((val: string) => {
+					let item: vscode.QuickPickItem = { description: val.replace(workspacePath, ""), label: val.split("/").pop() };
 					return item;
 				});
 				
@@ -48,8 +54,10 @@ export function activate(context: vscode.ExtensionContext) {
 		function returnRelativeLink(item: vscode.QuickPickItem): void {
 			if (item) {
 				const targetPath = item.description;
-				const currentItemPath = editor.document.fileName;
-				let relativeUrl: string = path.relative(currentItemPath, targetPath);
+				console.log(targetPath);
+				const currentItemPath = editor.document.fileName.replace(/\\/g,"/").replace(workspacePath, "");
+				console.log(currentItemPath);
+				let relativeUrl: string = path.relative(currentItemPath, targetPath).replace(".", "").replace(/\\/g,"/");
 				vscode.window.activeTextEditor.edit(
 					(editBuilder: vscode.TextEditorEdit) => {
 						let position: vscode.Position = vscode.window.activeTextEditor.selection.end;

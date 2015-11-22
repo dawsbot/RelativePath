@@ -31,7 +31,7 @@
 			"when": "editorTextFocus"
 		}]
 	},
-	"icon": "./icon.png",
+	"icon": "icon.png",
 	"keywords": ["relative", "path", "url", "file"],
 	"scripts": {
 		"vscode:prepublish": "node ./node_modules/vscode/bin/compile",
