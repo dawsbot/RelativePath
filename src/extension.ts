@@ -59,8 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
     myActivate();
 
     // Watch for file system changes - as we're caching the searched files
-    let watcher: vscode.FileSystemWatcher = vscode.workspace.createFileSystemWatcher("**/*.*");
-    watcher.ignoreChangeEvents = true;
+    let watcher: vscode.FileSystemWatcher = vscode.workspace.createFileSystemWatcher("**/*.*", false, true, false);
 
     // Add a file on creation
     watcher.onDidCreate((e: vscode.Uri) => {
