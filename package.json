@@ -9,7 +9,7 @@
 	"publisher": "jakob101",
 	"galleryBanner": {
 		"color": "#373277",
-		"theme": "dark"	
+		"theme": "dark"
 	},
 	"engines": {
 		"vscode": "^0.10.1"
@@ -45,7 +45,17 @@
                     "items": {
                         "type": "string"
                     }
-				}
+				},
+                "relativePath.removeExtension": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Excludes the extension from the relative path url (Useful for systemjs imports)."
+                },
+                "relativePath.removeLeadingDot": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Removes the leading ./ character when the path is pointing to a parent folder."
+                }
 			}
 		}
 	},
