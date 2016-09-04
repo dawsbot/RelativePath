@@ -1,7 +1,7 @@
 {
     "name": "RelativePath",
     "description": "Get relative url paths from files in the current workspace.",
-    "version": "0.9.1",
+    "version": "0.9.2",
     "repository": {
         "type": "git",
         "url": "https://github.com/jakob101/RelativePath"
@@ -82,5 +82,9 @@
     "devDependencies": {
         "typescript": "^1.6.2",
         "vscode": "0.10.x"
+    },
+    "dependencies": {
+        "@types/glob": "^5.0.29",
+        "glob": "^7.0.6"
     }
 }

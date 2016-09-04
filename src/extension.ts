@@ -4,8 +4,8 @@ import {window, workspace, commands, Disposable,
     ExtensionContext, StatusBarAlignment, StatusBarItem, 
     TextDocument, QuickPickItem, FileSystemWatcher, Uri,
     TextEditorEdit, TextEditor, Position} from 'vscode';
-let path = require("path");
-let Glob = require("glob").Glob;
+import * as path from "path";
+let Glob = require("Glob");
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
