@@ -20,16 +20,19 @@
     "license": "MIT",
     "displayName": "Relative Path",
     "activationEvents": [
+        "onCommand:extension.relativePath"
     ],
     "main": "./out/src/extension",
     "contributes": {
         "commands": [
             {
+                "command": "extension.relativePath",
                 "title": "Relative Path"
             }
         ],
         "keybindings": [
             {
+                "command": "extension.relativePath",
                 "key": "ctrl+shift+h",
                 "mac": "cmd+shift+h",
                 "when": "editorTextFocus"
