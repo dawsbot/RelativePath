@@ -7,17 +7,28 @@ Alternatively, you can press open command palette `F1` and search for `Relative 
 ![GIF](https://media.giphy.com/media/3oEduJ5iRksPxpwoXC/giphy.gif)
 
 ## How to use
-First, you will need to install Visual Studio Code 0.10. In the command palette (`Ctrl-Shift-P` or `Cmd-Shift-P`) select `Install Extension` and choose `RelativePath`.
+First, you will need to install Visual Studio Code. In the command palette (`Ctrl-Shift-P` or `Cmd-Shift-P`) select `Install Extension` and choose `RelativePath`.
 
 ## Important
 Your workspace may be really big, so please wait for the initial file list to be created. This will happen only once.
 
 ## Options
-The following Visual Studio Code setting is available for the RelativePath extension. It can be set in user preferences (`ctrl+,` or `cmd+,`) or workspace settings (.vscode/settings.json).
+The following Visual Studio Code settings are available for the RelativePath extension. They can be set in user preferences (`ctrl+,` or `cmd+,`) or workspace settings (.vscode/settings.json).
+```javascript
+	// An array of glob keys to ignore when searching.
+	"relativePath.ignore": [
+		"**/node_modules/**",
+		"**/*.dll",
+		"**/obj/**",
+		"**/objd/**"
+	],
 
-	{
-		"relativePath.ignore": ["**/node_modules/**","**/*.dll"]
-	}
+	// Excludes the extension from the relative path url (Useful for systemjs imports).
+	"relativePath.removeExtension": false,
+
+	// Removes the leading ./ character when the path is pointing to a parent folder.
+	"relativePath.removeLeadingDot": false
+```
 
 ## Bugs
 Report them [here](https://github.com/jakob101/RelativePath).
