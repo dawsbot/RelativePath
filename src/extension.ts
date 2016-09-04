@@ -1,145 +1,175 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import * as vscode from "vscode";
+import {window, workspace, commands, Disposable, 
+    ExtensionContext, StatusBarAlignment, StatusBarItem, 
+    TextDocument, QuickPickItem, FileSystemWatcher, Uri,
+    TextEditorEdit, TextEditor, Position} from 'vscode';
 let path = require("path");
 let Glob = require("glob").Glob;
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
-    console.log("The extension \"RelativePath\" is now active!");
-    const workspacePath: string = vscode.workspace.rootPath.replace(/\\/g, "/");
-    let configuration: any = vscode.workspace.getConfiguration("relativePath");
-    let editor = vscode.window.activeTextEditor;
-    let emptyItem: vscode.QuickPickItem = { label: "", description: "No files found" };
-    let items: string[] = null;
-    let myGlob = null;
-    let paused: boolean = false;
-
-    function myActivate() {
-
-        // Show loading info box
-        let info = vscode.window.showQuickPick([emptyItem], { matchOnDescription: false, placeHolder: "Finding files... Please wait. (Press escape to cancel)" });
-        info.then(
-            (value?: any) => {
-                myGlob.pause();
-                paused = true;
-            },
-            (rejected?: any) => {
-                myGlob.pause();
-                paused = true;
-            }
-        );
-
-        // Search for files
-        if (paused) {
-            paused = false;
-            myGlob.resume();
-        } else {
-            myGlob = new Glob(workspacePath + "/**/*.*",
-                { ignore: configuration.get("ignore") },
-                function(err, files) {
-                    if (err) {
-                        return;
-                    }
-
-                    items = files;
-                    vscode.commands.executeCommand("extension.relativePath");
-                });
-            myGlob.on("end", function() {
-                paused = false;
-            });
-        }
-    }
-
-    // Initialize activation
-    myActivate();
-
-    // Watch for file system changes - as we're caching the searched files
-    let watcher: vscode.FileSystemWatcher = vscode.workspace.createFileSystemWatcher("**/*.*", false, true, false);
-
-    // Add a file on creation
-    watcher.onDidCreate((e: vscode.Uri) => {
-        items.push(e.fsPath.replace(/\\/g, "/"));
-    });
-
-    // Remove a file on deletion
-    watcher.onDidDelete((e: vscode.Uri) => {
-        let item = e.fsPath.replace(/\\/g, "/");
-        let index = items.indexOf(item);
-        if (index > -1) {
-            items.splice(index, 1);
-        }
-    });
+export function activate(context: ExtensionContext) {
+    let relativePath = new RelativePath();
 
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with  registerCommand
     // The commandId parameter must match the command field in package.json
-    let disposable = vscode.commands.registerCommand("extension.relativePath", () => {
+    let disposable = commands.registerCommand("extension.relativePath", () => {
         // The code you place here will be executed every time your command is executed
 
+        relativePath.findRelativePath();
+    });
+
+    context.subscriptions.push(relativePath);
+    context.subscriptions.push(disposable);
+}
+
+class RelativePath {
+
+    private _items: string[];
+    private _watcher: FileSystemWatcher;
+    private _workspacePath: string;
+    private _configuration: any;
+    private _pausedSearch: boolean;
+
+    constructor() {
+        this._items = null;
+        this._pausedSearch = false;
+        this._workspacePath = workspace.rootPath.replace(/\\/g, "/");
+        this._configuration = workspace.getConfiguration("relativePath");
+
+        this.initializeWatcher();
+        this.searchWorkspace();
+    }
+
+    // When a file is added or deleted, we need to update cache
+    private initializeWatcher() {
+        // Watch for file system changes - as we're caching the searched files
+        this._watcher =  workspace.createFileSystemWatcher("**/*.*", false, true, false);
+
+        // Add a file on creation
+        this._watcher.onDidCreate((e: Uri) => {
+            this._items.push(e.fsPath.replace(/\\/g, "/"));
+        });
+
+        // Remove a file on deletion
+        this._watcher.onDidDelete((e: Uri) => {
+            let item = e.fsPath.replace(/\\/g, "/");
+            let index = this._items.indexOf(item);
+            if (index > -1) {
+                this._items.splice(index, 1);
+            }
+        });
+    }
+
+    // Go through workspace to cache files
+    private searchWorkspace() {
+        let emptyItem: QuickPickItem = { label: "", description: "No files found" };
+        let myGlob = null;
+
+        // Show loading info box
+        let info = window.showQuickPick([emptyItem], { matchOnDescription: false, placeHolder: "Finding files... Please wait. (Press escape to cancel)" });
+        info.then(
+            (value?: any) => {
+                if (myGlob) {
+                    myGlob.pause();
+                }
+                this._pausedSearch = true;
+            },
+            (rejected?: any) => {
+                if (myGlob) {
+                    myGlob.pause();
+                }
+                this._pausedSearch = true;
+            }
+        );
+
+        // Search for files
+        if (this._pausedSearch) {
+            this._pausedSearch = false;
+            if (myGlob) {
+                myGlob.resume();
+            }
+        } else {
+            myGlob = new Glob(this._workspacePath + "/**/*.*",
+                { ignore: this._configuration.get("ignore") },
+                (err, files) => {
+                    if (err) {
+                        return;
+                    }
+
+                    this._items = files;
+                    this.findRelativePath();
+                });
+            myGlob.on("end", () => {
+                this._pausedSearch = false;
+            });
+        }
+    }
+
+    // Show dropdown editor
+    private showQuickPick(items: string[], editor: TextEditor): void {
+        if (items) {
+            let paths: QuickPickItem[] = items.map((val: string) => {
+                let item: QuickPickItem = { description: val.replace(this._workspacePath, ""), label: val.split("/").pop() };
+                return item;
+            });
+
+            let pickResult: Thenable<QuickPickItem>;
+            pickResult = window.showQuickPick(paths, { matchOnDescription: true, placeHolder: "Filename" });
+            pickResult.then((item: QuickPickItem) => this.returnRelativeLink(item, editor));
+        } else {
+            window.showInformationMessage("No files to show.");
+        }
+    }
+
+    // Get the picked item
+    private returnRelativeLink(item: QuickPickItem, editor: TextEditor): void {
+        if (item) {
+            const targetPath = item.description;
+            const currentItemPath = editor.document.fileName.replace(/\\/g, "/").replace(this._workspacePath, "");
+            let relativeUrl: string = path.relative(currentItemPath, targetPath).replace(".", "").replace(/\\/g, "/");
+
+            if (this._configuration.removeExtension) {
+                relativeUrl = relativeUrl.substring(0, relativeUrl.lastIndexOf("."));
+            }
+            if (this._configuration.removeLeadingDot && relativeUrl.startsWith("./../")) {
+                relativeUrl = relativeUrl.substring(2, relativeUrl.length);
+            }
+
+            window.activeTextEditor.edit(
+                (editBuilder: TextEditorEdit) => {
+                    let position: Position = window.activeTextEditor.selection.end;
+                    editBuilder.insert(position, relativeUrl);
+                }
+            );
+        }
+    }
+
+    public findRelativePath() {
         // If there's no file opened
-        let editor = vscode.window.activeTextEditor;
+        let editor = window.activeTextEditor;
         if (!editor) {
-            vscode.window.showInformationMessage("You need to have a file opened.");
+            window.showInformationMessage("You need to have a file opened.");
             return; // No open text editor
         }
 
         // If we canceled the file search
-        if (paused) {
-            myActivate();
+        if (this._pausedSearch) {
+            this.searchWorkspace();
             return;
         }
 
         // If there are no items found
-        if (!items) {
+        if (!this._items) {
             return;
         }
 
-        showQuickPick(items);
+        this.showQuickPick(this._items, editor);
+    }
 
-        // Show dropdown editor
-        function showQuickPick(items: string[]): void {
-            if (items) {
-                let paths: vscode.QuickPickItem[] = items.map((val: string) => {
-                    let item: vscode.QuickPickItem = { description: val.replace(workspacePath, ""), label: val.split("/").pop() };
-                    return item;
-                });
-
-                let pickResult: Thenable<vscode.QuickPickItem>;
-                pickResult = vscode.window.showQuickPick(paths, { matchOnDescription: true, placeHolder: "Filename" });
-                pickResult.then(returnRelativeLink);
-            } else {
-                vscode.window.showInformationMessage("No files to show.");
-            }
-        }
-
-        // Get the picked item
-        function returnRelativeLink(item: vscode.QuickPickItem): void {
-            if (item) {
-                const targetPath = item.description;
-                const currentItemPath = editor.document.fileName.replace(/\\/g, "/").replace(workspacePath, "");
-                let relativeUrl: string = path.relative(currentItemPath, targetPath).replace(".", "").replace(/\\/g, "/");
-
-                if (configuration.removeExtension) {
-                    relativeUrl = relativeUrl.substring(0, relativeUrl.lastIndexOf("."));
-                }
-                if (configuration.removeLeadingDot && relativeUrl.startsWith("./../")) {
-                    relativeUrl = relativeUrl.substring(2, relativeUrl.length);
-                }
-
-                vscode.window.activeTextEditor.edit(
-                    (editBuilder: vscode.TextEditorEdit) => {
-                        let position: vscode.Position = vscode.window.activeTextEditor.selection.end;
-                        editBuilder.insert(position, relativeUrl);
-                    }
-                );
-            }
-        }
-    });
-
-    context.subscriptions.push(disposable);
+    dispose() {
+        this._items = null;
+    }
 }
