@@ -32,10 +32,12 @@ class RelativePath {
     private _workspacePath: string;
     private _configuration: any;
     private _pausedSearch: boolean;
+    private _myGlob: any;
 
     constructor() {
         this._items = null;
-        this._pausedSearch = false;
+        this._pausedSearch = null;
+        this._myGlob = null;
         this._workspacePath = workspace.rootPath.replace(/\\/g, "/");
         this._configuration = workspace.getConfiguration("relativePath");
 
@@ -66,33 +68,36 @@ class RelativePath {
     // Go through workspace to cache files
     private searchWorkspace() {
         let emptyItem: QuickPickItem = { label: "", description: "No files found" };
-        let myGlob = null;
 
         // Show loading info box
         let info = window.showQuickPick([emptyItem], { matchOnDescription: false, placeHolder: "Finding files... Please wait. (Press escape to cancel)" });
         info.then(
             (value?: any) => {
-                if (myGlob) {
-                    myGlob.pause();
+                if (this._myGlob) {
+                    this._myGlob.pause();
                 }
-                this._pausedSearch = true;
+                if (this._pausedSearch === null) {
+                    this._pausedSearch = true;
+                }
             },
             (rejected?: any) => {
-                if (myGlob) {
-                    myGlob.pause();
+                if (this._myGlob) {
+                    this._myGlob.pause();
                 }
-                this._pausedSearch = true;
+                if (this._pausedSearch === null) {
+                    this._pausedSearch = true;
+                }
             }
         );
 
         // Search for files
         if (this._pausedSearch) {
             this._pausedSearch = false;
-            if (myGlob) {
-                myGlob.resume();
+            if (this._myGlob) {
+                this._myGlob.resume();
             }
         } else {
-            myGlob = new Glob(this._workspacePath + "/**/*.*",
+            this._myGlob = new Glob(this._workspacePath + "/**/*.*",
                 { ignore: this._configuration.get("ignore") },
                 (err, files) => {
                     if (err) {
@@ -102,7 +107,7 @@ class RelativePath {
                     this._items = files;
                     this.findRelativePath();
                 });
-            myGlob.on("end", () => {
+            this._myGlob.on("end", () => {
                 this._pausedSearch = false;
             });
         }
