@@ -136,7 +136,7 @@ class RelativePath {
             return false;
         }
 
-        return this._configuration.excludExtensions.some((ext: string) => {
+        return this._configuration.excludedExtensions.some((ext: string) => {
             return (ext.startsWith('.') ? ext : `.${ext}`).toLowerCase() === currentExtension.toLowerCase();
         })
     }

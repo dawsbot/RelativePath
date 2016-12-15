@@ -65,7 +65,7 @@
                     "default": false,
                     "description": "Removes the leading ./ character when the path is pointing to a parent folder."
                 },
-                "relativePath.excludExtensions": {
+                "relativePath.excludedExtensions": {
                     "type": "array",
                     "default": [
                         ".js"
