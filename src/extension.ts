@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import {window, workspace, commands, Disposable, 
-    ExtensionContext, StatusBarAlignment, StatusBarItem, 
+import {window, workspace, commands, Disposable,
+    ExtensionContext, StatusBarAlignment, StatusBarItem,
     TextDocument, QuickPickItem, FileSystemWatcher, Uri,
     TextEditorEdit, TextEditor, Position} from 'vscode';
 import * as path from "path";
@@ -43,12 +43,13 @@ class RelativePath {
 
         this.initializeWatcher();
         this.searchWorkspace();
+        this.initializeConfigWatcher();
     }
 
     // When a file is added or deleted, we need to update cache
     private initializeWatcher() {
         // Watch for file system changes - as we're caching the searched files
-        this._watcher =  workspace.createFileSystemWatcher("**/*.*", false, true, false);
+        this._watcher = workspace.createFileSystemWatcher("**/*.*", false, true, false);
 
         // Add a file on creation
         this._watcher.onDidCreate((e: Uri) => {
@@ -66,7 +67,7 @@ class RelativePath {
     }
 
     // Go through workspace to cache files
-    private searchWorkspace() {
+    private searchWorkspace(skipOpen = false) {
         let emptyItem: QuickPickItem = { label: "", description: "No files found" };
 
         // Show loading info box
@@ -105,12 +106,38 @@ class RelativePath {
                     }
 
                     this._items = files;
-                    this.findRelativePath();
+                    if (!skipOpen) {
+                        this.findRelativePath();
+                    }
                 });
             this._myGlob.on("end", () => {
                 this._pausedSearch = false;
             });
         }
+    }
+
+    // Compares the ignore property of _configuration to lastConfig
+    private ignoreWasUpdated(currentIgnore: Array<string>, lastIgnore: Array<string>): boolean {
+        if (currentIgnore.length !== lastIgnore.length) {
+            return true;
+        } else if (currentIgnore.some(glob => lastIgnore.indexOf(glob) < 0)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // Listen for changes in the config files and update the config object
+    private initializeConfigWatcher(): void {
+        workspace.onDidChangeConfiguration((e) => {
+            const lastConfig = this._configuration;
+            this._configuration = workspace.getConfiguration("relativePath");
+
+            // Handle updates to the ignored property if there's one
+            if (this.ignoreWasUpdated(this._configuration.ignore, lastConfig.ignore)) {
+                this.searchWorkspace(true);
+            }
+        }, this);
     }
 
     // Show dropdown editor
