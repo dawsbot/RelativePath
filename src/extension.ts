@@ -66,31 +66,8 @@ class RelativePath {
         });
     }
 
-    // Go through workspace to cache files
-    private searchWorkspace(skipOpen = false) {
-        let emptyItem: QuickPickItem = { label: "", description: "No files found" };
-
-        // Show loading info box
-        let info = window.showQuickPick([emptyItem], { matchOnDescription: false, placeHolder: "Finding files... Please wait. (Press escape to cancel)" });
-        info.then(
-            (value?: any) => {
-                if (this._myGlob) {
-                    this._myGlob.pause();
-                }
-                if (this._pausedSearch === null) {
-                    this._pausedSearch = true;
-                }
-            },
-            (rejected?: any) => {
-                if (this._myGlob) {
-                    this._myGlob.pause();
-                }
-                if (this._pausedSearch === null) {
-                    this._pausedSearch = true;
-                }
-            }
-        );
-
+    // Purely updates the files
+    private updateFiles(skipOpen = false): void {
         // Search for files
         if (this._pausedSearch) {
             this._pausedSearch = false;
@@ -116,6 +93,34 @@ class RelativePath {
         }
     }
 
+    // Go through workspace to cache files
+    private searchWorkspace(skipOpen = false) {
+        let emptyItem: QuickPickItem = { label: "", description: "No files found" };
+
+        // Show loading info box
+        let info = window.showQuickPick([emptyItem], { matchOnDescription: false, placeHolder: "Finding files... Please wait. (Press escape to cancel)" });
+        info.then(
+            (value?: any) => {
+                if (this._myGlob) {
+                    this._myGlob.pause();
+                }
+                if (this._pausedSearch === null) {
+                    this._pausedSearch = true;
+                }
+            },
+            (rejected?: any) => {
+                if (this._myGlob) {
+                    this._myGlob.pause();
+                }
+                if (this._pausedSearch === null) {
+                    this._pausedSearch = true;
+                }
+            }
+        );
+
+        this.updateFiles(skipOpen);
+    }
+
     // Compares the ignore property of _configuration to lastConfig
     private ignoreWasUpdated(currentIgnore: Array<string>, lastIgnore: Array<string>): boolean {
         if (currentIgnore.length !== lastIgnore.length) {
@@ -135,7 +140,7 @@ class RelativePath {
 
             // Handle updates to the ignored property if there's one
             if (this.ignoreWasUpdated(this._configuration.ignore, lastConfig.ignore)) {
-                this.searchWorkspace(true);
+                this.updateFiles(true);
             }
         }, this);
     }
