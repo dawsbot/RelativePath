@@ -43,12 +43,13 @@ class RelativePath {
 
         this.initializeWatcher();
         this.searchWorkspace();
+        this.initializeConfigWatcher();
     }
 
     // When a file is added or deleted, we need to update cache
     private initializeWatcher() {
         // Watch for file system changes - as we're caching the searched files
-        this._watcher =  workspace.createFileSystemWatcher("**/*.*", false, true, false);
+        this._watcher = workspace.createFileSystemWatcher("**/*.*", false, true, false);
 
         // Add a file on creation
         this._watcher.onDidCreate((e: Uri) => {
@@ -65,8 +66,35 @@ class RelativePath {
         });
     }
 
+    // Purely updates the files
+    private updateFiles(skipOpen = false): void {
+        // Search for files
+        if (this._pausedSearch) {
+            this._pausedSearch = false;
+            if (this._myGlob) {
+                this._myGlob.resume();
+            }
+        } else {
+            this._myGlob = new Glob(this._workspacePath + "/**/*.*",
+                { ignore: this._configuration.get("ignore") },
+                (err, files) => {
+                    if (err) {
+                        return;
+                    }
+
+                    this._items = files;
+                    if (!skipOpen) {
+                        this.findRelativePath();
+                    }
+                });
+            this._myGlob.on("end", () => {
+                this._pausedSearch = false;
+            });
+        }
+    }
+
     // Go through workspace to cache files
-    private searchWorkspace() {
+    private searchWorkspace(skipOpen = false) {
         let emptyItem: QuickPickItem = { label: "", description: "No files found" };
 
         // Show loading info box
@@ -90,27 +118,31 @@ class RelativePath {
             }
         );
 
-        // Search for files
-        if (this._pausedSearch) {
-            this._pausedSearch = false;
-            if (this._myGlob) {
-                this._myGlob.resume();
-            }
-        } else {
-            this._myGlob = new Glob(this._workspacePath + "/**/*.*",
-                { ignore: this._configuration.get("ignore") },
-                (err, files) => {
-                    if (err) {
-                        return;
-                    }
+        this.updateFiles(skipOpen);
+    }
 
-                    this._items = files;
-                    this.findRelativePath();
-                });
-            this._myGlob.on("end", () => {
-                this._pausedSearch = false;
-            });
+    // Compares the ignore property of _configuration to lastConfig
+    private ignoreWasUpdated(currentIgnore: Array<string>, lastIgnore: Array<string>): boolean {
+        if (currentIgnore.length !== lastIgnore.length) {
+            return true;
+        } else if (currentIgnore.some(glob => lastIgnore.indexOf(glob) < 0)) {
+            return true;
         }
+
+        return false;
+    }
+
+    // Listen for changes in the config files and update the config object
+    private initializeConfigWatcher(): void {
+        workspace.onDidChangeConfiguration((e) => {
+            const lastConfig = this._configuration;
+            this._configuration = workspace.getConfiguration("relativePath");
+
+            // Handle updates to the ignored property if there's one
+            if (this.ignoreWasUpdated(this._configuration.ignore, lastConfig.ignore)) {
+                this.updateFiles(true);
+            }
+        }, this);
     }
 
     // Show dropdown editor
