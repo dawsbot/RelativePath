@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import {window, workspace, commands, Disposable, 
-    ExtensionContext, StatusBarAlignment, StatusBarItem, 
+import {window, workspace, commands, Disposable,
+    ExtensionContext, StatusBarAlignment, StatusBarItem,
     TextDocument, QuickPickItem, FileSystemWatcher, Uri,
     TextEditorEdit, TextEditor, Position} from 'vscode';
 import * as path from "path";
@@ -129,6 +129,18 @@ class RelativePath {
         }
     }
 
+    // Check if the current extension should be excluded
+    private excludeExtensionsFor(relativeUrl: string) {
+        const currentExtension = path.extname(relativeUrl)
+        if (currentExtension === '') {
+            return false;
+        }
+
+        return this._configuration.excludedExtensions.some((ext: string) => {
+            return (ext.startsWith('.') ? ext : `.${ext}`).toLowerCase() === currentExtension.toLowerCase();
+        })
+    }
+
     // Get the picked item
     private returnRelativeLink(item: QuickPickItem, editor: TextEditor): void {
         if (item) {
@@ -137,6 +149,8 @@ class RelativePath {
             let relativeUrl: string = path.relative(currentItemPath, targetPath).replace(".", "").replace(/\\/g, "/");
 
             if (this._configuration.removeExtension) {
+                relativeUrl = relativeUrl.substring(0, relativeUrl.lastIndexOf("."));
+            } else if (this.excludeExtensionsFor(relativeUrl)) {
                 relativeUrl = relativeUrl.substring(0, relativeUrl.lastIndexOf("."));
             }
             if (this._configuration.removeLeadingDot && relativeUrl.startsWith("./../")) {

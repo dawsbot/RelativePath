@@ -64,6 +64,13 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Removes the leading ./ character when the path is pointing to a parent folder."
+                },
+                "relativePath.excludedExtensions": {
+                    "type": "array",
+                    "default": [
+                        ".js"
+                    ],
+                    "description": "An array of extensions to exclude from the relative path url (Useful for used with Webpack or when importing files of mixed types)"
                 }
             }
         }
