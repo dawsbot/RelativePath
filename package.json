@@ -60,11 +60,6 @@
                     "default": false,
                     "description": "Excludes the extension from the relative path url (Useful for systemjs imports)."
                 },
-                "relativePath.removeLeadingDot": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Removes the leading ./ character when the path is pointing to a parent folder."
-                },
                 "relativePath.excludedExtensions": {
                     "type": "array",
                     "default": [

@@ -185,7 +185,8 @@ class RelativePath {
             } else if (this.excludeExtensionsFor(relativeUrl)) {
                 relativeUrl = relativeUrl.substring(0, relativeUrl.lastIndexOf("."));
             }
-            if (this._configuration.removeLeadingDot && relativeUrl.startsWith("./../")) {
+
+            if (relativeUrl.startsWith("./../")) {
                 relativeUrl = relativeUrl.substring(2, relativeUrl.length);
             }
 
