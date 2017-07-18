@@ -26,9 +26,6 @@ The following Visual Studio Code settings are available for the RelativePath ext
 	// Excludes the extension from the relative path url (Useful for systemjs imports).
 	"relativePath.removeExtension": false,
 
-	// Removes the leading ./ character when the path is pointing to a parent folder.
-	"relativePath.removeLeadingDot": false
-
 	// An array of extensions to exclude from the relative path url (Useful for used with Webpack or when importing files of mixed types)
 	"relativePath.excludedExtensions": [
 		".js"
