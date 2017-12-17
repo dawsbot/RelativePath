@@ -1,9 +1,12 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import {window, workspace, commands, Disposable,
+import {
+    window, workspace, commands, Disposable,
     ExtensionContext, StatusBarAlignment, StatusBarItem,
     TextDocument, QuickPickItem, FileSystemWatcher, Uri,
-    TextEditorEdit, TextEditor, Position} from 'vscode';
+    TextEditorEdit, TextEditor, Position
+} from 'vscode';
+
 import * as path from "path";
 let Glob = require("glob");
 
@@ -38,7 +41,7 @@ class RelativePath {
         this._items = null;
         this._pausedSearch = null;
         this._myGlob = null;
-        this._workspacePath = workspace.rootPath.replace(/\\/g, "/");
+        this._workspacePath = this.getWorkspaceFolder();
         this._configuration = workspace.getConfiguration("relativePath");
 
         this.initializeWatcher();
@@ -51,10 +54,24 @@ class RelativePath {
         // Watch for file system changes - as we're caching the searched files
         this._watcher = workspace.createFileSystemWatcher("**/*.*", false, true, false);
 
+        // this._watcher.onDidChange()
         // Add a file on creation
         this._watcher.onDidCreate((e: Uri) => {
             this._items.push(e.fsPath.replace(/\\/g, "/"));
         });
+
+        // on change active text editor refresh the cache
+        // if the workspace folder has changed
+        window.onDidChangeActiveTextEditor((e: TextEditor) => {
+            const currentWorkspacePath = this.getWorkspaceFolder();
+            if (this._workspacePath !== currentWorkspacePath) {
+                this._workspacePath = currentWorkspacePath;
+
+                if (this._workspacePath) {
+                    this.updateFiles(true);
+                }
+            }
+        })
 
         // Remove a file on deletion
         this._watcher.onDidDelete((e: Uri) => {
@@ -65,7 +82,14 @@ class RelativePath {
             }
         });
     }
-
+    private getWorkspaceFolder(): string {
+        const editor = window.activeTextEditor;
+        if (editor) {
+            const res = editor.document.uri;
+            const folder = workspace.getWorkspaceFolder(res)
+            return folder.uri.fsPath;
+        }
+    }
     // Purely updates the files
     private updateFiles(skipOpen = false): void {
         // Search for files
@@ -202,7 +226,8 @@ class RelativePath {
     public findRelativePath() {
         // If there's no file opened
         let editor = window.activeTextEditor;
-        if (!editor) {
+
+        if (this._workspacePath == null || !editor) {
             window.showInformationMessage("You need to have a file opened.");
             return; // No open text editor
         }
