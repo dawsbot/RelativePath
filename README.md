@@ -10,7 +10,16 @@ Alternatively, you can press open command palette `F1` and search for `Relative 
 First, you will need to install Visual Studio Code. In the command palette (`Ctrl-Shift-P` or `Cmd-Shift-P`) select `Install Extension` and choose `RelativePath`.
 
 ## Important
-Your workspace may be really big, so please wait for the initial file list to be created. This will happen only once.
+
+### In Multi root workspaces:
+
+Everytime you switch to a file from a different workspace the files in that workspace are indexed and
+cached to improve search performance. If you have multiple large projects part of a workspace
+this might slow you down.
+
+### In Single project workspace:
+The caching of the filelist in the project happens only once. If your workspace contains a lot of files
+please wait for the initial file list to be created.
 
 ## Options
 The following Visual Studio Code settings are available for the RelativePath extension. They can be set in user preferences (`ctrl+,` or `cmd+,`) or workspace settings (.vscode/settings.json).

@@ -54,7 +54,6 @@ class RelativePath {
         // Watch for file system changes - as we're caching the searched files
         this._watcher = workspace.createFileSystemWatcher("**/*.*", false, true, false);
 
-        // this._watcher.onDidChange()
         // Add a file on creation
         this._watcher.onDidCreate((e: Uri) => {
             this._items.push(e.fsPath.replace(/\\/g, "/"));
