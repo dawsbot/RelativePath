@@ -13,9 +13,9 @@ First, you will need to install Visual Studio Code. In the command palette (`Ctr
 
 ### In Multi root workspaces:
 
-Everytime you switch to a file from a different workspace the files in that workspace are indexed and
-cached to improve search performance. If you have multiple large projects part of a workspace
-this might slow you down.
+Everytime you switch to a file from a different folder the files in that folder are indexed and
+cached to improve search performance. If you have multiple large folders part of a workspace
+frequent switches between folders might slow you down.
 
 ### In Single project workspace:
 The caching of the filelist in the project happens only once. If your workspace contains a lot of files
