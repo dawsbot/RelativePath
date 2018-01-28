@@ -1,7 +1,7 @@
 ## Relative path support for Visual Studio Code
 Now you can get the relative path to any file in the workspace.
 
-Just press `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`) and select a file.
+Just press `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`) and select a file. If your workspace has more than 1000 files, you will be prompted to filter that list first.
 Alternatively, you can press open command palette `F1` and search for `Relative Path`.
 
 ![GIF](https://media.giphy.com/media/3oEduJ5iRksPxpwoXC/giphy.gif)

@@ -177,7 +177,7 @@ class RelativePath {
             });
 
             let pickResult: Thenable<QuickPickItem>;
-            pickResult = window.showQuickPick(paths, { matchOnDescription: true, placeHolder: "Filename" });
+            pickResult = window.showQuickPick(paths, { matchOnDescription: true, placeHolder: `Type to filter ${items.length} files` });
             pickResult.then((item: QuickPickItem) => this.returnRelativeLink(item, editor));
         } else {
             window.showInformationMessage("No files to show.");
@@ -242,7 +242,29 @@ class RelativePath {
             return;
         }
 
-        this.showQuickPick(this._items, editor);
+        // Don't filter on too many files. Show the input search box instead
+        if (this._items.length > 1000) {
+            const placeHolder = `Found ${this._items.length} files. Enter the filter query. Consider adding more 'relativePath.ignore' settings.`;
+            const input = window.showInputBox({placeHolder});
+            input.then(val => {
+                if (val === undefined) {
+                    // User pressed 'Escape' 
+                    return;
+                }
+
+                if (val === "") {
+                    // User just pressed 'Enter'
+                    this.showQuickPick(this._items, editor);
+                    return;
+                }
+
+                this.showQuickPick(this._items.filter(item => item.toLowerCase().indexOf(val.toLowerCase()) > -1), editor);
+            }, reason => {
+                return;
+            })
+        } else {
+            this.showQuickPick(this._items, editor);
+        }
     }
 
     dispose() {
