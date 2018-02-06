@@ -66,6 +66,11 @@
                         ".js"
                     ],
                     "description": "An array of extensions to exclude from the relative path url (Useful for used with Webpack or when importing files of mixed types)"
+                },
+                "relativePath.removeLeadingDot": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Removes the leading ./ character when the path is pointing to a parent folder."
                 }
             }
         }

@@ -85,8 +85,8 @@ class RelativePath {
         const editor = window.activeTextEditor;
         if (editor) {
             const res = editor.document.uri;
-            const folder = workspace.getWorkspaceFolder(res)
-            return folder.uri.fsPath;
+            const folder = workspace.getWorkspaceFolder(res);
+            return folder.uri.fsPath.replace(/\\/g, "/");
         }
     }
     // Purely updates the files
@@ -203,13 +203,11 @@ class RelativePath {
             const currentItemPath = editor.document.fileName.replace(/\\/g, "/").replace(this._workspacePath, "");
             let relativeUrl: string = path.relative(currentItemPath, targetPath).replace(".", "").replace(/\\/g, "/");
 
-            if (this._configuration.removeExtension) {
-                relativeUrl = relativeUrl.substring(0, relativeUrl.lastIndexOf("."));
-            } else if (this.excludeExtensionsFor(relativeUrl)) {
+            if (this._configuration.removeExtension || this.excludeExtensionsFor(relativeUrl)) {
                 relativeUrl = relativeUrl.substring(0, relativeUrl.lastIndexOf("."));
             }
 
-            if (relativeUrl.startsWith("./../")) {
+            if (this._configuration.removeLeadingDot && relativeUrl.startsWith("./../")) {
                 relativeUrl = relativeUrl.substring(2, relativeUrl.length);
             }
 
