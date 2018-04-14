@@ -240,8 +240,18 @@ class RelativePath {
             return;
         }
 
+        let extendedLimit = this._configuration.extendedLimit,
+            disableQuickFilter = true;
+
+        if (extendedLimit && this._items.length <= extendedLimit) {
+            disableQuickFilter = false;
+        }
+        else if(this._items.length <= 1000) {
+            disableQuickFilter = false;
+        }
+
         // Don't filter on too many files. Show the input search box instead
-        if (this._items.length > 1000) {
+        if (disableQuickFilter) {
             const placeHolder = `Found ${this._items.length} files. Enter the filter query. Consider adding more 'relativePath.ignore' settings.`;
             const input = window.showInputBox({placeHolder});
             input.then(val => {
