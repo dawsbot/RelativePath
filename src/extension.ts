@@ -246,7 +246,7 @@ class RelativePath {
         if (extendedLimit && this._items.length <= extendedLimit) {
             disableQuickFilter = false;
         }
-        else if(this._items.length <= 1000) {
+        else if (this._items.length <= 1000) {
             disableQuickFilter = false;
         }
 
