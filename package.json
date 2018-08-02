@@ -71,6 +71,13 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Removes the leading ./ character when the path is pointing to a parent folder."
+                },
+                "relativePath.omitParts": {
+                    "type": "arary",
+                    "default": [
+                        "\\/index$"
+                    ],
+                    "description": "Omit path parts by matched Regular Expressions"
                 }
             }
         }

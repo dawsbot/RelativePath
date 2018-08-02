@@ -211,6 +211,12 @@ class RelativePath {
                 relativeUrl = relativeUrl.substring(2, relativeUrl.length);
             }
 
+            if (this._configuration.omitParts) {
+                this._configuration.omitParts.forEach(omitRegexp => {
+                    relativeUrl = relativeUrl.replace(new RegExp(omitRegexp), '');
+                });
+            }
+
             window.activeTextEditor.edit(
                 (editBuilder: TextEditorEdit) => {
                     let position: Position = window.activeTextEditor.selection.end;
