@@ -98,7 +98,7 @@ class RelativePath {
                 this._myGlob.resume();
             }
         } else {
-            this._myGlob = new Glob(this._workspacePath + "/**/*.*",
+            this._myGlob = new Glob(this._workspacePath + this._configuration.get('include'),
                 { ignore: this._configuration.get("ignore") },
                 (err, files) => {
                     if (err) {
@@ -262,7 +262,7 @@ class RelativePath {
             const input = window.showInputBox({placeHolder});
             input.then(val => {
                 if (val === undefined) {
-                    // User pressed 'Escape' 
+                    // User pressed 'Escape'
                     return;
                 }
 
