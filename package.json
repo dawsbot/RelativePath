@@ -114,8 +114,6 @@
     },
     "dependencies": {
         "@types/glob": "^5.0.34",
-        "audit": "0.0.6",
-        "fix": "0.0.6",
         "glob": "^7.1.2"
     }
 }
