@@ -42,6 +42,11 @@
             "title": "RelativePath extension configuration",
             "type": "object",
             "properties": {
+                "relativePath.include": {
+                    "type": "string",
+                    "default": "/**/*.*",
+                    "description": "A glob by which to filter results"
+                },
                 "relativePath.ignore": {
                     "type": "array",
                     "default": [
@@ -74,11 +79,16 @@
                     "description": "Removes the leading ./ character when the path is pointing to a parent folder."
                 },
                 "relativePath.omitParts": {
-                    "type": "arary",
+                    "type": "array",
                     "default": [
                         "\\/index$"
                     ],
                     "description": "Omit path parts by matched Regular Expressions"
+                },
+                "relativePath.extendedLimit": {
+                    "type": "int",
+                    "default": 1000,
+                    "description": "Number of results after which use is asked to further filter their search"
                 }
             }
         }
@@ -98,12 +108,14 @@
     "devDependencies": {
         "@types/mocha": "^2.2.32",
         "@types/node": "^6.0.40",
-        "mocha": "^2.3.3",
+        "mocha": "^6.2.1",
         "typescript": "^2.6.2",
-        "vscode": "^1.1.10"
+        "vscode": "^1.1.36"
     },
     "dependencies": {
         "@types/glob": "^5.0.34",
+        "audit": "0.0.6",
+        "fix": "0.0.6",
         "glob": "^7.1.2"
     }
 }

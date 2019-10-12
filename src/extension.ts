@@ -98,7 +98,7 @@ class RelativePath {
                 this._myGlob.resume();
             }
         } else {
-            this._myGlob = new Glob(this._workspacePath + "/**/*.*",
+            this._myGlob = new Glob(this._workspacePath + this._configuration.get('include'),
                 { ignore: this._configuration.get("ignore") },
                 (err, files) => {
                     if (err) {
