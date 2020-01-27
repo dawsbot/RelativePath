@@ -34,6 +34,10 @@ The following Visual Studio Code settings are available for the RelativePath ext
 
 	// Excludes the extension from the relative path url (Useful for systemjs imports).
 	"relativePath.removeExtension": false,
+	
+	// For performance optimization the default limit for quick filter is 1000 // files. Extending this limit might lead to performance drop but will 
+	// still provide the quick filtering feature.
+	"relativePath.extendedLimit": 3000
 
 	// An array of extensions to exclude from the relative path url (Useful for used with Webpack or when importing files of mixed types)
 	"relativePath.excludedExtensions": [
