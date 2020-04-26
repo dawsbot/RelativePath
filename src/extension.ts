@@ -219,8 +219,12 @@ class RelativePath {
 
             window.activeTextEditor.edit(
                 (editBuilder: TextEditorEdit) => {
-                    let position: Position = window.activeTextEditor.selection.end;
-                    editBuilder.insert(position, relativeUrl);
+                    let selections = window.activeTextEditor.selections;
+                    selections.forEach(sel => {
+                        editor.edit(editBuilder => {
+                            editBuilder.replace(sel, relativeUrl);
+                        });
+                    });
                 }
             );
         }
@@ -259,7 +263,7 @@ class RelativePath {
         // Don't filter on too many files. Show the input search box instead
         if (disableQuickFilter) {
             const placeHolder = `Found ${this._items.length} files. Enter the filter query. Consider adding more 'relativePath.ignore' settings.`;
-            const input = window.showInputBox({placeHolder});
+            const input = window.showInputBox({ placeHolder });
             input.then(val => {
                 if (val === undefined) {
                     // User pressed 'Escape' 
