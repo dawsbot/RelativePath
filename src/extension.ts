@@ -36,6 +36,7 @@ class RelativePath {
     private _configuration: any;
     private _pausedSearch: boolean;
     private _myGlob: any;
+    private _searchExclude: any;
 
     constructor() {
         this._items = null;
@@ -43,6 +44,7 @@ class RelativePath {
         this._myGlob = null;
         this._workspacePath = this.getWorkspaceFolder();
         this._configuration = workspace.getConfiguration("relativePath");
+        this._searchExclude = workspace.getConfiguration("search.exclude");
 
         this.initializeWatcher();
         this.searchWorkspace();
@@ -98,8 +100,12 @@ class RelativePath {
                 this._myGlob.resume();
             }
         } else {
+
+            const searchExclude = Object.keys(this._searchExclude).filter(n => this._searchExclude[n] === true);
+            const ignore  = this._configuration.get("ignore").concat(searchExclude);
+
             this._myGlob = new Glob(this._workspacePath + "/**/*.*",
-                { ignore: this._configuration.get("ignore") },
+                { ignore: ignore },
                 (err, files) => {
                     if (err) {
                         return;
