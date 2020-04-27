@@ -225,15 +225,8 @@ class RelativePath {
 
             window.activeTextEditor.edit(
                 (editBuilder: TextEditorEdit) => {
-                    // Get all selections
-                    let selections = window.activeTextEditor.selections;
-
-                    // Replace selections with relative Url.
-                    selections.forEach(sel => {
-                        editor.edit(editBuilder => {
-                            editBuilder.replace(sel, relativeUrl);
-                        });
-                    });
+                    let position: Position = window.activeTextEditor.selection.end;
+                    editBuilder.insert(position, relativeUrl);
                 }
             );
         }
