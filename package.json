@@ -74,7 +74,7 @@
                     "description": "Removes the leading ./ character when the path is pointing to a parent folder."
                 },
                 "relativePath.omitParts": {
-                    "type": "arary",
+                    "type": "array",
                     "default": [
                         "\\/index$"
                     ],
