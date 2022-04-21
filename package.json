@@ -68,7 +68,8 @@
                 "relativePath.excludedExtensions": {
                     "type": "array",
                     "default": [
-                        ".js"
+                        ".js",
+                        ".ts"
                     ],
                     "description": "An array of extensions to exclude from the relative path url (Useful for used with Webpack or when importing files of mixed types)"
                 },
