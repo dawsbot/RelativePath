@@ -297,18 +297,14 @@ class RelativePath {
       return;
     }
 
-    let extendedLimit = this._configuration.extendedLimit,
-      disableQuickFilter = true;
+    const allowQuickFilter =
+      this._configuration.extendedLimit > this._items.length;
 
-    if (extendedLimit && this._items.length <= extendedLimit) {
-      disableQuickFilter = false;
-    } else if (this._items.length <= 1000) {
-      disableQuickFilter = false;
-    }
-
-    // Don't filter on too many files. Show the input search box instead
-    if (disableQuickFilter) {
-      const placeHolder = `Found ${this._items.length} files. Enter the filter query. Consider adding more 'relativePath.ignore' settings.`;
+    if (allowQuickFilter) {
+      this.showQuickPick(this._items, editor);
+    } else {
+      // Don't filter on too many files. Show the input search box instead
+      const placeHolder = `Found ${this._items.length} files but your limit is ${this._configuration.extendedLimit}. Start typing or ignore files with 'relativePath.ignore' in settings.`;
       const input = window.showInputBox({ placeHolder });
       input.then(
         (val) => {
@@ -330,12 +326,10 @@ class RelativePath {
             editor
           );
         },
-        (reason) => {
+        () => {
           return;
         }
       );
-    } else {
-      this.showQuickPick(this._items, editor);
     }
   }
 
