@@ -57,8 +57,13 @@
                 "relativePath.ignore": {
                     "type": "array",
                     "default": [
+                        "**/.git/**",
                         "**/node_modules/**",
+                        "**/.husky/**",
+                        "**/.next/**",
                         "**/*.dll",
+                        "**/*.swp",
+                        "**/*.un~",
                         "**/obj/**",
                         "**/objd/**"
                     ],
