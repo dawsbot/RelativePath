@@ -1,11 +1,22 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import {
-    window, workspace, commands, Disposable,
-    ExtensionContext, StatusBarAlignment, StatusBarItem,
-    TextDocument, QuickPickItem, FileSystemWatcher, Uri,
-    TextEditorEdit, TextEditor, Position
-} from 'vscode';
+    window,
+    workspace,
+    commands,
+    Disposable,
+    ExtensionContext,
+    StatusBarAlignment,
+    StatusBarItem,
+    TextDocument,
+    QuickPickItem,
+    FileSystemWatcher,
+    Uri,
+    TextEditorEdit,
+    TextEditor,
+    Position,
+    WorkspaceConfiguration,
+} from "vscode";
 
 import * as path from "path";
 let Glob = require("glob");
@@ -29,16 +40,15 @@ export function activate(context: ExtensionContext) {
 }
 
 class RelativePath {
-
-    private _items: string[];
+    private _fileNames: string[];
     private _watcher: FileSystemWatcher;
     private _workspacePath: string;
-    private _configuration: any;
+    private _configuration: WorkspaceConfiguration;
     private _pausedSearch: boolean;
     private _myGlob: any;
 
     constructor() {
-        this._items = null;
+        this._fileNames = null;
         this._pausedSearch = null;
         this._myGlob = null;
         this._workspacePath = this.getWorkspaceFolder();
@@ -51,17 +61,25 @@ class RelativePath {
 
     // When a file is added or deleted, we need to update cache
     private initializeWatcher() {
+        const IGNORE_CREATE_EVENTS = false;
+        const IGNORE_CHANGE_EVENTS = true;
+        const IGNORE_DELETE_EVENTS = false;
         // Watch for file system changes - as we're caching the searched files
-        this._watcher = workspace.createFileSystemWatcher("**/*.*", false, true, false);
+        this._watcher = workspace.createFileSystemWatcher(
+            "**/*.*",
+            IGNORE_CREATE_EVENTS,
+            IGNORE_CHANGE_EVENTS,
+            IGNORE_DELETE_EVENTS
+        );
 
         // Add a file on creation
-        this._watcher.onDidCreate((e: Uri) => {
-            this._items.push(e.fsPath.replace(/\\/g, "/"));
+        this._watcher.onDidCreate((e) => {
+            this._fileNames.push(e.fsPath.replace(/\\/g, "/"));
         });
 
         // on change active text editor refresh the cache
         // if the workspace folder has changed
-        window.onDidChangeActiveTextEditor((e: TextEditor) => {
+        window.onDidChangeActiveTextEditor((e) => {
             const currentWorkspacePath = this.getWorkspaceFolder();
             if (this._workspacePath !== currentWorkspacePath) {
                 this._workspacePath = currentWorkspacePath;
@@ -70,14 +88,14 @@ class RelativePath {
                     this.updateFiles(true);
                 }
             }
-        })
+        });
 
         // Remove a file on deletion
-        this._watcher.onDidDelete((e: Uri) => {
+        this._watcher.onDidDelete((e) => {
             let item = e.fsPath.replace(/\\/g, "/");
-            let index = this._items.indexOf(item);
+            let index = this._fileNames.indexOf(item);
             if (index > -1) {
-                this._items.splice(index, 1);
+                this._fileNames.splice(index, 1);
             }
         });
     }
@@ -98,18 +116,24 @@ class RelativePath {
                 this._myGlob.resume();
             }
         } else {
-            this._myGlob = new Glob(this._workspacePath + "/**/*.*",
-                { ignore: this._configuration.get("ignore"), dot: true, nodir: true },
+            this._myGlob = new Glob(
+                this._workspacePath + this._configuration.get("includeGlob"),
+                {
+                    ignore: this._configuration.get("ignore"),
+                    dot: true,
+                    nodir: true,
+                },
                 (err, files) => {
                     if (err) {
                         return;
                     }
 
-                    this._items = files;
+                    this._fileNames = files;
                     if (!skipOpen) {
                         this.findRelativePath();
                     }
-                });
+                }
+            );
             this._myGlob.on("end", () => {
                 this._pausedSearch = false;
             });
@@ -118,10 +142,17 @@ class RelativePath {
 
     // Go through workspace to cache files
     private searchWorkspace(skipOpen = false) {
-        let emptyItem: QuickPickItem = { label: "", description: "No files found" };
+        let emptyItem: QuickPickItem = {
+            label: "",
+            description: "No files found",
+        };
 
         // Show loading info box
-        let info = window.showQuickPick([emptyItem], { matchOnDescription: false, placeHolder: "Finding files... Please wait. (Press escape to cancel)" });
+        let info = window.showQuickPick([emptyItem], {
+            matchOnDescription: false,
+            placeHolder:
+                "Finding files... Please wait. (Press escape to cancel)",
+        });
         info.then(
             (value?: any) => {
                 if (this._myGlob) {
@@ -145,10 +176,13 @@ class RelativePath {
     }
 
     // Compares the ignore property of _configuration to lastConfig
-    private ignoreWasUpdated(currentIgnore: Array<string>, lastIgnore: Array<string>): boolean {
+    private ignoreWasUpdated(
+        currentIgnore: Array<string>,
+        lastIgnore: Array<string>
+    ): boolean {
         if (currentIgnore.length !== lastIgnore.length) {
             return true;
-        } else if (currentIgnore.some(glob => lastIgnore.indexOf(glob) < 0)) {
+        } else if (currentIgnore.some((glob) => lastIgnore.indexOf(glob) < 0)) {
             return true;
         }
 
@@ -162,7 +196,12 @@ class RelativePath {
             this._configuration = workspace.getConfiguration("relativePath");
 
             // Handle updates to the ignored property if there's one
-            if (this.ignoreWasUpdated(this._configuration.ignore, lastConfig.ignore)) {
+            if (
+                this.ignoreWasUpdated(
+                    this._configuration.ignore,
+                    lastConfig.ignore
+                )
+            ) {
                 this.updateFiles(true);
             }
         }, this);
@@ -172,13 +211,21 @@ class RelativePath {
     private showQuickPick(items: string[], editor: TextEditor): void {
         if (items) {
             let paths: QuickPickItem[] = items.map((val: string) => {
-                let item: QuickPickItem = { description: val.replace(this._workspacePath, ""), label: val.split("/").pop() };
+                let item: QuickPickItem = {
+                    description: val.replace(this._workspacePath, ""),
+                    label: val.split("/").pop(),
+                };
                 return item;
             });
 
             let pickResult: Thenable<QuickPickItem>;
-            pickResult = window.showQuickPick(paths, { matchOnDescription: true, placeHolder: `Type to filter ${items.length} files` });
-            pickResult.then((item: QuickPickItem) => this.returnRelativeLink(item, editor));
+            pickResult = window.showQuickPick(paths, {
+                matchOnDescription: true,
+                placeHolder: `Type to filter ${items.length} files`,
+            });
+            pickResult.then((item: QuickPickItem) =>
+                this.returnRelativeLink(item, editor)
+            );
         } else {
             window.showInformationMessage("No files to show.");
         }
@@ -186,50 +233,68 @@ class RelativePath {
 
     // Check if the current extension should be excluded
     private excludeExtensionsFor(relativeUrl: string) {
-        const currentExtension = path.extname(relativeUrl)
-        if (currentExtension === '') {
+        const currentExtension = path.extname(relativeUrl);
+        if (currentExtension === "") {
             return false;
         }
 
         return this._configuration.excludedExtensions.some((ext: string) => {
-            return (ext.startsWith('.') ? ext : `.${ext}`).toLowerCase() === currentExtension.toLowerCase();
-        })
+            return (
+                (ext.startsWith(".") ? ext : `.${ext}`).toLowerCase() ===
+                currentExtension.toLowerCase()
+            );
+        });
     }
 
     // Get the picked item
     private returnRelativeLink(item: QuickPickItem, editor: TextEditor): void {
         if (item) {
             const targetPath = item.description;
-            const currentItemPath = editor.document.fileName.replace(/\\/g, "/").replace(this._workspacePath, "");
-            let relativeUrl: string = path.relative(currentItemPath, targetPath).replace(".", "").replace(/\\/g, "/");
+            const currentItemPath = editor.document.fileName
+                .replace(/\\/g, "/")
+                .replace(this._workspacePath, "");
+            let relativeUrl: string = path
+                .relative(currentItemPath, targetPath)
+                .replace(".", "")
+                .replace(/\\/g, "/");
 
-            if (this._configuration.removeExtension || this.excludeExtensionsFor(relativeUrl)) {
-                relativeUrl = relativeUrl.substring(0, relativeUrl.lastIndexOf("."));
+            if (
+                this._configuration.removeExtension ||
+                this.excludeExtensionsFor(relativeUrl)
+            ) {
+                relativeUrl = relativeUrl.substring(
+                    0,
+                    relativeUrl.lastIndexOf(".")
+                );
             }
 
-            if (this._configuration.removeLeadingDot && relativeUrl.startsWith("./../")) {
+            if (
+                this._configuration.removeLeadingDot &&
+                relativeUrl.startsWith("./../")
+            ) {
                 relativeUrl = relativeUrl.substring(2, relativeUrl.length);
             }
 
             if (this._configuration.omitParts) {
-                this._configuration.omitParts.forEach(omitRegexp => {
-                    relativeUrl = relativeUrl.replace(new RegExp(omitRegexp), '');
+                this._configuration.omitParts.forEach((omitRegexp) => {
+                    relativeUrl = relativeUrl.replace(
+                        new RegExp(omitRegexp),
+                        ""
+                    );
                 });
             }
 
-            window.activeTextEditor.edit(
-                (editBuilder: TextEditorEdit) => {
-                    // Get all selections
-                    let selections = window.activeTextEditor.selections;
+            window.activeTextEditor.edit((editBuilder: TextEditorEdit) => {
+                // Get all selections
+                let selections = window.activeTextEditor.selections;
 
-                    // Replace selections with relative Url.
-                    selections.forEach(sel => {
-                        editor.edit(editBuilder => {
-                            editBuilder.replace(sel, relativeUrl);
-                        });
+                // Replace selections with relative Url.
+                selections.forEach((sel) => {
+                    editor.edit((editBuilder) => {
+                        editBuilder.replace(sel, relativeUrl);
                     });
-                }
-            );
+                });
+            });
         }
     }
 
@@ -249,46 +314,49 @@ class RelativePath {
         }
 
         // If there are no items found
-        if (!this._items) {
+        if (!this._fileNames) {
             return;
         }
 
-        let extendedLimit = this._configuration.extendedLimit,
-            disableQuickFilter = true;
+        const allowQuickFilter =
+            this._configuration.searchCountLimit > this._fileNames.length;
 
-        if (extendedLimit && this._items.length <= extendedLimit) {
-            disableQuickFilter = false;
-        }
-        else if (this._items.length <= 1000) {
-            disableQuickFilter = false;
-        }
-
-        // Don't filter on too many files. Show the input search box instead
-        if (disableQuickFilter) {
-            const placeHolder = `Found ${this._items.length} files. Enter the filter query. Consider adding more 'relativePath.ignore' settings.`;
-            const input = window.showInputBox({ placeHolder });
-            input.then(val => {
-                if (val === undefined) {
-                    // User pressed 'Escape' 
-                    return;
-                }
-
-                if (val === "") {
-                    // User just pressed 'Enter'
-                    this.showQuickPick(this._items, editor);
-                    return;
-                }
-
-                this.showQuickPick(this._items.filter(item => item.toLowerCase().indexOf(val.toLowerCase()) > -1), editor);
-            }, reason => {
-                return;
-            })
+        if (allowQuickFilter) {
+            this.showQuickPick(this._fileNames, editor);
         } else {
-            this.showQuickPick(this._items, editor);
+            // Don't filter on too many files. Show the input search box instead
+            const placeHolder = `Found ${this._fileNames.length} files but your limit is ${this._configuration.searchCountLimit}. Start typing or ignore files with 'relativePath.ignore' in settings.`;
+            const input = window.showInputBox({ placeHolder });
+            input.then(
+                (val) => {
+                    if (val === undefined) {
+                        // User pressed 'Escape'
+                        return;
+                    }
+
+                    if (val === "") {
+                        // User just pressed 'Enter'
+                        this.showQuickPick(this._fileNames, editor);
+                        return;
+                    }
+
+                    this.showQuickPick(
+                        this._fileNames.filter(
+                            (item) =>
+                                item.toLowerCase().indexOf(val.toLowerCase()) >
+                                -1
+                        ),
+                        editor
+                    );
+                },
+                () => {
+                    return;
+                }
+            );
         }
     }
 
     dispose() {
-        this._items = null;
+        this._fileNames = null;
     }
 }

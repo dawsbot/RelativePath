@@ -39,9 +39,14 @@
             }
         ],
         "configuration": {
-            "title": "RelativePath extension configuration",
+            "title": "RelativePath",
             "type": "object",
             "properties": {
+                "relativePath.includeGlob": {
+                    "type": "string",
+                    "default": "/**/*.*",
+                    "description": "A glob by which to filter results"
+                },
                 "relativePath.ignore": {
                     "type": "array",
                     "default": [
@@ -58,7 +63,7 @@
                 "relativePath.removeExtension": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Excludes the extension from the relative path url (Useful for systemjs imports)."
+                    "description": "Excludes the file extension from the relative path url (Useful for systemjs imports)."
                 },
                 "relativePath.excludedExtensions": {
                     "type": "array",
@@ -66,7 +71,7 @@
                         ".js",
                         ".ts"
                     ],
-                    "description": "An array of extensions to exclude from the relative path url (Useful for used with Webpack or when importing files of mixed types)"
+                    "description": "An array of file extensions to exclude from the relative path url (Useful for used with Webpack or when importing files of mixed types)"
                 },
                 "relativePath.removeLeadingDot": {
                     "type": "boolean",
@@ -79,6 +84,11 @@
                         "\\/index$"
                     ],
                     "description": "Omit path parts by matched Regular Expressions"
+                },
+                "relativePath.searchCountLimit": {
+                    "type": "integer",
+                    "default": 1000,
+                    "description": "Max number of files searched in quick filter. Extending this may lead to performance issues."
                 }
             }
         }
