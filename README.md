@@ -12,7 +12,7 @@ Press `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`) and start typing the file you want.
 
 1. [Install the extension](https://marketplace.visualstudio.com/items?itemName=jakob101.RelativePath&ssr=false#overview)
 2. Press `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`) and start typing the file you want.
-   - The file you want will appear as you type
+    - The file you want will appear as you type
 3. 🪄 Select your file from the dropdown!
 
 <br/>
