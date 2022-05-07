@@ -100,7 +100,7 @@
         "@types/node": "^6.0.40",
         "mocha": "^2.3.3",
         "typescript": "^2.6.2",
-        "vscode": "^1.1.10"
+        "vscode": "^1.1.37"
     },
     "dependencies": {
         "@types/glob": "^5.0.34",
