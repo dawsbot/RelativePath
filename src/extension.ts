@@ -117,7 +117,7 @@ class RelativePath {
             }
         } else {
             this._myGlob = new Glob(
-                this._workspacePath + this._configuration.get("include"),
+                this._workspacePath + this._configuration.get("includeGlob"),
                 {
                     ignore: this._configuration.get("ignore"),
                     dot: true,

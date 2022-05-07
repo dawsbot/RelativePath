@@ -25,7 +25,7 @@ They can be set in user preferences (`ctrl+,` or `cmd+,`) or workspace settings 
 
 ```javascript
 // A glob by which to filter results
-"relativePath.include": "/**/*.*",
+"relativePath.includeGlob": "/**/*.*",
 
 // An array of glob keys to ignore when searching.
 "relativePath.ignore": [

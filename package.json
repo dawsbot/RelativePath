@@ -42,7 +42,7 @@
             "title": "RelativePath",
             "type": "object",
             "properties": {
-                "relativePath.include": {
+                "relativePath.includeGlob": {
                     "type": "string",
                     "default": "/**/*.*",
                     "description": "A glob by which to filter results"
