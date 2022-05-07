@@ -103,7 +103,7 @@
         "vscode": "^1.1.37"
     },
     "dependencies": {
-        "@types/glob": "^5.0.34",
-        "glob": "^7.1.2"
+        "@types/glob": "^7.2.0",
+        "glob": "^8.0.1"
     }
 }
