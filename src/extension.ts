@@ -99,7 +99,7 @@ class RelativePath {
             }
         } else {
             this._myGlob = new Glob(this._workspacePath + "/**/*.*",
-                { ignore: this._configuration.get("ignore") },
+                { ignore: this._configuration.get("ignore"), dot: true, nodir: true },
                 (err, files) => {
                     if (err) {
                         return;
