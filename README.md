@@ -12,7 +12,7 @@ Press `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`) and start typing the file you want.
 
 1. [Install the extension](https://marketplace.visualstudio.com/items?itemName=jakob101.RelativePath&ssr=false#overview)
 2. Press `Ctrl+Shift+H` (Mac: `Cmd+Shift+H`) and start typing the file you want.
-    - The file you want will appear as you type
+   - The file you want will appear as you type
 3. 🪄 Select your file from the dropdown!
 
 <br/>
@@ -45,8 +45,8 @@ They can be set in user preferences (`ctrl+,` or `cmd+,`) or workspace settings 
 ],
 
 // For performance optimization the default limit for quick filter is 1,000 files.
-// Extending this limit might lead to performance drop
-"relativePath.extendedLimit": 1000,
+// Extending this may lead to performance issues
+"relativePath.searchCountLimit": 1000,
 
 // Removes the leading ./ character when the path is pointing to a parent folder.
 "relativePath.removeLeadingDot": true,

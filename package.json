@@ -85,10 +85,10 @@
                     ],
                     "description": "Omit path parts by matched Regular Expressions"
                 },
-                "relativePath.extendedLimit": {
+                "relativePath.searchCountLimit": {
                     "type": "integer",
                     "default": 1000,
-                    "description": "Number of results after which use is asked to further filter their search"
+                    "description": "Max number of files searched in quick filter. Extending this may lead to performance issues."
                 }
             }
         }

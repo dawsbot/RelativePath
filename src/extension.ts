@@ -15,6 +15,7 @@ import {
     TextEditorEdit,
     TextEditor,
     Position,
+    WorkspaceConfiguration,
 } from "vscode";
 
 import * as path from "path";
@@ -39,15 +40,15 @@ export function activate(context: ExtensionContext) {
 }
 
 class RelativePath {
-    private _items: string[];
+    private _fileNames: string[];
     private _watcher: FileSystemWatcher;
     private _workspacePath: string;
-    private _configuration: any;
+    private _configuration: WorkspaceConfiguration;
     private _pausedSearch: boolean;
     private _myGlob: any;
 
     constructor() {
-        this._items = null;
+        this._fileNames = null;
         this._pausedSearch = null;
         this._myGlob = null;
         this._workspacePath = this.getWorkspaceFolder();
@@ -60,22 +61,25 @@ class RelativePath {
 
     // When a file is added or deleted, we need to update cache
     private initializeWatcher() {
+        const IGNORE_CREATE_EVENTS = false;
+        const IGNORE_CHANGE_EVENTS = true;
+        const IGNORE_DELETE_EVENTS = false;
         // Watch for file system changes - as we're caching the searched files
         this._watcher = workspace.createFileSystemWatcher(
             "**/*.*",
-            false,
-            true,
-            false
+            IGNORE_CREATE_EVENTS,
+            IGNORE_CHANGE_EVENTS,
+            IGNORE_DELETE_EVENTS
         );
 
         // Add a file on creation
-        this._watcher.onDidCreate((e: Uri) => {
-            this._items.push(e.fsPath.replace(/\\/g, "/"));
+        this._watcher.onDidCreate((e) => {
+            this._fileNames.push(e.fsPath.replace(/\\/g, "/"));
         });
 
         // on change active text editor refresh the cache
         // if the workspace folder has changed
-        window.onDidChangeActiveTextEditor((e: TextEditor) => {
+        window.onDidChangeActiveTextEditor((e) => {
             const currentWorkspacePath = this.getWorkspaceFolder();
             if (this._workspacePath !== currentWorkspacePath) {
                 this._workspacePath = currentWorkspacePath;
@@ -87,11 +91,11 @@ class RelativePath {
         });
 
         // Remove a file on deletion
-        this._watcher.onDidDelete((e: Uri) => {
+        this._watcher.onDidDelete((e) => {
             let item = e.fsPath.replace(/\\/g, "/");
-            let index = this._items.indexOf(item);
+            let index = this._fileNames.indexOf(item);
             if (index > -1) {
-                this._items.splice(index, 1);
+                this._fileNames.splice(index, 1);
             }
         });
     }
@@ -124,7 +128,7 @@ class RelativePath {
                         return;
                     }
 
-                    this._items = files;
+                    this._fileNames = files;
                     if (!skipOpen) {
                         this.findRelativePath();
                     }
@@ -310,18 +314,18 @@ class RelativePath {
         }
 
         // If there are no items found
-        if (!this._items) {
+        if (!this._fileNames) {
             return;
         }
 
         const allowQuickFilter =
-            this._configuration.extendedLimit > this._items.length;
+            this._configuration.searchCountLimit > this._fileNames.length;
 
         if (allowQuickFilter) {
-            this.showQuickPick(this._items, editor);
+            this.showQuickPick(this._fileNames, editor);
         } else {
             // Don't filter on too many files. Show the input search box instead
-            const placeHolder = `Found ${this._items.length} files but your limit is ${this._configuration.extendedLimit}. Start typing or ignore files with 'relativePath.ignore' in settings.`;
+            const placeHolder = `Found ${this._fileNames.length} files but your limit is ${this._configuration.searchCountLimit}. Start typing or ignore files with 'relativePath.ignore' in settings.`;
             const input = window.showInputBox({ placeHolder });
             input.then(
                 (val) => {
@@ -332,12 +336,12 @@ class RelativePath {
 
                     if (val === "") {
                         // User just pressed 'Enter'
-                        this.showQuickPick(this._items, editor);
+                        this.showQuickPick(this._fileNames, editor);
                         return;
                     }
 
                     this.showQuickPick(
-                        this._items.filter(
+                        this._fileNames.filter(
                             (item) =>
                                 item.toLowerCase().indexOf(val.toLowerCase()) >
                                 -1
@@ -353,6 +357,6 @@ class RelativePath {
     }
 
     dispose() {
-        this._items = null;
+        this._fileNames = null;
     }
 }
