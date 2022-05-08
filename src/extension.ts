@@ -1,25 +1,19 @@
+import type { IGlob } from "glob";
+import { Glob } from "glob";
+import * as path from "path";
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import {
+    commands,
+    ExtensionContext,
+    FileSystemWatcher,
+    QuickPickItem,
+    TextEditor,
+    TextEditorEdit,
     window,
     workspace,
-    commands,
-    Disposable,
-    ExtensionContext,
-    StatusBarAlignment,
-    StatusBarItem,
-    TextDocument,
-    QuickPickItem,
-    FileSystemWatcher,
-    Uri,
-    TextEditorEdit,
-    TextEditor,
-    Position,
     WorkspaceConfiguration,
 } from "vscode";
-
-import * as path from "path";
-let Glob = require("glob");
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -45,7 +39,7 @@ class RelativePath {
     private _workspacePath: string;
     private _configuration: WorkspaceConfiguration;
     private _pausedSearch: boolean;
-    private _myGlob: any;
+    private _myGlob: IGlob;
 
     constructor() {
         this._fileNames = null;
@@ -154,7 +148,7 @@ class RelativePath {
                 "Finding files... Please wait. (Press escape to cancel)",
         });
         info.then(
-            (value?: any) => {
+            (value) => {
                 if (this._myGlob) {
                     this._myGlob.pause();
                 }
@@ -162,7 +156,7 @@ class RelativePath {
                     this._pausedSearch = true;
                 }
             },
-            (rejected?: any) => {
+            (rejected) => {
                 if (this._myGlob) {
                     this._myGlob.pause();
                 }
