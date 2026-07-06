@@ -1,13 +1,13 @@
-import type { IGlob } from "glob";
-import { Glob } from "glob";
 import * as path from "path";
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import {
+    CancellationTokenSource,
     commands,
     ExtensionContext,
     FileSystemWatcher,
     QuickPickItem,
+    RelativePattern,
     TextEditor,
     TextEditorEdit,
     window,
@@ -39,12 +39,12 @@ class RelativePath {
     private _workspacePath: string;
     private _configuration: WorkspaceConfiguration;
     private _pausedSearch: boolean;
-    private _myGlob: IGlob;
+    private _tokenSource: CancellationTokenSource;
 
     constructor() {
         this._fileNames = null;
         this._pausedSearch = null;
-        this._myGlob = null;
+        this._tokenSource = null;
         this._workspacePath = this.getWorkspaceFolder();
         this._configuration = workspace.getConfiguration("relativePath");
 
@@ -103,35 +103,49 @@ class RelativePath {
     }
     // Purely updates the files
     private updateFiles(skipOpen = false): void {
-        // Search for files
-        if (this._pausedSearch) {
-            this._pausedSearch = false;
-            if (this._myGlob) {
-                this._myGlob.resume();
-            }
-        } else {
-            this._myGlob = new Glob(
-                this._workspacePath + this._configuration.get("includeGlob"),
-                {
-                    ignore: this._configuration.get("ignore"),
-                    dot: true,
-                    nodir: true,
-                },
-                (err, files) => {
-                    if (err) {
-                        return;
-                    }
-
-                    this._fileNames = files;
-                    if (!skipOpen) {
-                        this.findRelativePath();
-                    }
-                }
-            );
-            this._myGlob.on("end", () => {
-                this._pausedSearch = false;
-            });
+        if (!this._workspacePath) {
+            return;
         }
+
+        // Cancel any search that is still running
+        if (this._tokenSource) {
+            this._tokenSource.cancel();
+        }
+        const tokenSource = new CancellationTokenSource();
+        this._tokenSource = tokenSource;
+        this._pausedSearch = false;
+
+        const includeGlob: string = this._configuration.get("includeGlob");
+        const include = new RelativePattern(
+            this._workspacePath,
+            includeGlob.replace(/^\/+/, "")
+        );
+        const ignore: string[] = this._configuration.get("ignore");
+        const exclude =
+            ignore && ignore.length ? `{${ignore.join(",")}}` : undefined;
+
+        workspace
+            .findFiles(include, exclude, undefined, tokenSource.token)
+            .then((files) => {
+                if (this._tokenSource !== tokenSource) {
+                    // A newer search superseded this one
+                    return;
+                }
+                this._tokenSource = null;
+
+                if (tokenSource.token.isCancellationRequested) {
+                    // The user dismissed the "Finding files..." box
+                    this._pausedSearch = true;
+                    return;
+                }
+
+                this._fileNames = files.map((file) =>
+                    file.fsPath.replace(/\\/g, "/")
+                );
+                if (!skipOpen) {
+                    this.findRelativePath();
+                }
+            });
     }
 
     // Go through workspace to cache files
@@ -147,24 +161,14 @@ class RelativePath {
             placeHolder:
                 "Finding files... Please wait. (Press escape to cancel)",
         });
-        info.then(
-            (value) => {
-                if (this._myGlob) {
-                    this._myGlob.pause();
-                }
-                if (this._pausedSearch === null) {
-                    this._pausedSearch = true;
-                }
-            },
-            (rejected) => {
-                if (this._myGlob) {
-                    this._myGlob.pause();
-                }
-                if (this._pausedSearch === null) {
-                    this._pausedSearch = true;
-                }
+        // If the loading box is dismissed while a search is still
+        // running, cancel it. It will be restarted on next invocation.
+        const onDismiss = () => {
+            if (this._tokenSource) {
+                this._tokenSource.cancel();
             }
-        );
+        };
+        info.then(onDismiss, onDismiss);
 
         this.updateFiles(skipOpen);
     }
