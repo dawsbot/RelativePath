@@ -5,7 +5,8 @@
     "scripts": {
         "vscode:prepublish": "tsc -p ./",
         "compile": "tsc -watch -p ./",
-        "test": "tsc",
+        "clean": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\"",
+        "test": "npm run clean && tsc && node --test out/test/**/*.test.js",
         "prepare": "husky install",
         "postversion": "git push --follow-tags && gh release create --generate-notes"
     },
@@ -113,12 +114,10 @@
         "file"
     ],
     "devDependencies": {
-        "@types/mocha": "^9.1.1",
-        "@types/node": "^17.0.31",
-        "@types/vscode": "^1.75.0",
+        "@types/node": "18.11.18",
+        "@types/vscode": "1.75.0",
         "husky": "^7.0.4",
         "lint-staged": "^12.4.1",
-        "mocha": "^10.0.0",
         "prettier": "^2.6.2",
         "prettier-plugin-organize-imports": "^2.3.4",
         "typescript": "^4.6.4"

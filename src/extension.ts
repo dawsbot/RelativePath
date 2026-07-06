@@ -14,6 +14,7 @@ import {
     workspace,
     WorkspaceConfiguration,
 } from "vscode";
+import { buildExcludeGlob, normalizeIncludeGlob } from "./globs";
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -38,12 +39,10 @@ class RelativePath {
     private _watcher: FileSystemWatcher;
     private _workspacePath: string;
     private _configuration: WorkspaceConfiguration;
-    private _pausedSearch: boolean;
     private _tokenSource: CancellationTokenSource;
 
     constructor() {
         this._fileNames = null;
-        this._pausedSearch = null;
         this._tokenSource = null;
         this._workspacePath = this.getWorkspaceFolder();
         this._configuration = workspace.getConfiguration("relativePath");
@@ -113,16 +112,13 @@ class RelativePath {
         }
         const tokenSource = new CancellationTokenSource();
         this._tokenSource = tokenSource;
-        this._pausedSearch = false;
 
         const includeGlob: string = this._configuration.get("includeGlob");
         const include = new RelativePattern(
             this._workspacePath,
-            includeGlob.replace(/^\/+/, "")
+            normalizeIncludeGlob(includeGlob)
         );
-        const ignore: string[] = this._configuration.get("ignore");
-        const exclude =
-            ignore && ignore.length ? `{${ignore.join(",")}}` : undefined;
+        const exclude = buildExcludeGlob(this._configuration.get("ignore"));
 
         workspace
             .findFiles(include, exclude, undefined, tokenSource.token)
@@ -134,8 +130,6 @@ class RelativePath {
                 this._tokenSource = null;
 
                 if (tokenSource.token.isCancellationRequested) {
-                    // The user dismissed the "Finding files..." box
-                    this._pausedSearch = true;
                     return;
                 }
 
@@ -305,14 +299,14 @@ class RelativePath {
             return; // No open text editor
         }
 
-        // If we canceled the file search
-        if (this._pausedSearch) {
-            this.searchWorkspace();
+        // If search is still running, wait for it to open the picker.
+        if (this._tokenSource) {
             return;
         }
 
-        // If there are no items found
+        // If there are no cached items yet, start or restart the search.
         if (!this._fileNames) {
+            this.searchWorkspace();
             return;
         }
 
