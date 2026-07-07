@@ -17,7 +17,11 @@ import {
 } from "vscode";
 import { getClosestMatches } from "./closest-match";
 import { shouldAddToCache } from "./glob-match";
-import { buildExcludeGlob, normalizeIncludeGlob } from "./globs";
+import {
+    buildExcludeGlob,
+    collectExcludeGlobs,
+    normalizeIncludeGlob,
+} from "./globs";
 import { partitionByRecency, recordRecentPath } from "./recent-paths";
 import { replaceSelections } from "./replace-selections";
 import { isTruncated, resolveMaxResults } from "./search-limit";
@@ -105,7 +109,7 @@ class RelativePath {
                 shouldAddToCache(
                     filePath.slice(workspacePrefix.length),
                     normalizeIncludeGlob(includeGlob),
-                    this._configuration.get("ignore")
+                    this.buildIgnoreGlobs()
                 )
             ) {
                 this._fileNames.push(filePath);
@@ -167,7 +171,7 @@ class RelativePath {
             this._workspacePath,
             normalizeIncludeGlob(includeGlob)
         );
-        const exclude = buildExcludeGlob(this._configuration.get("ignore"));
+        const exclude = buildExcludeGlob(this.buildIgnoreGlobs());
         const maxResults = resolveMaxResults(
             this._configuration.get("maxFilesCached")
         );
@@ -220,6 +224,34 @@ class RelativePath {
         this.updateFiles(skipOpen);
     }
 
+    // The globs excluded from both the findFiles scan and the file-creation
+    // watcher: the user's `relativePath.ignore` plus VS Code's own built-in
+    // excludes so those don't have to be duplicated (issue #31).
+    //
+    // `files.exclude` is always merged in: findFiles applies it to the scan no
+    // matter what we pass (short of a `null` exclude, which would also drop our
+    // own ignore globs), so we add it to keep the creation watcher consistent
+    // with that. `search.exclude` is opt-in via
+    // `relativePath.respectSearchExclude` (default true), because findFiles
+    // never applies it on its own.
+    private buildIgnoreGlobs(): string[] {
+        const ignore: string[] = this._configuration.get("ignore") ?? [];
+
+        const filesExclude = workspace
+            .getConfiguration("files")
+            .get<Record<string, unknown>>("exclude");
+        const globs = [...ignore, ...collectExcludeGlobs(filesExclude)];
+
+        if (this._configuration.get("respectSearchExclude")) {
+            const searchExclude = workspace
+                .getConfiguration("search")
+                .get<Record<string, unknown>>("exclude");
+            globs.push(...collectExcludeGlobs(searchExclude));
+        }
+
+        return globs;
+    }
+
     // Compares the ignore property of _configuration to lastConfig
     private ignoreWasUpdated(
         currentIgnore: Array<string>,
@@ -240,6 +272,13 @@ class RelativePath {
             const lastConfig = this._configuration;
             this._configuration = workspace.getConfiguration("relativePath");
 
+            // VS Code's own `files.exclude` always shapes our cache, and
+            // `search.exclude` does too while it's respected, so a change to
+            // either must trigger a rescan.
+            const respectSearch = this._configuration.get(
+                "respectSearchExclude"
+            );
+
             // Handle updates to the properties that shape the cached file
             // list if there are any
             if (
@@ -249,7 +288,11 @@ class RelativePath {
                 ) ||
                 this._configuration.maxFilesCached !==
                     lastConfig.maxFilesCached ||
-                this._configuration.includeGlob !== lastConfig.includeGlob
+                this._configuration.includeGlob !== lastConfig.includeGlob ||
+                this._configuration.respectSearchExclude !==
+                    lastConfig.respectSearchExclude ||
+                e.affectsConfiguration("files.exclude") ||
+                (respectSearch && e.affectsConfiguration("search.exclude"))
             ) {
                 this.updateFiles(true);
             }
