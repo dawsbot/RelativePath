@@ -14,6 +14,7 @@ import {
     workspace,
     WorkspaceConfiguration,
 } from "vscode";
+import { getClosestMatches } from "./closest-match";
 import { buildExcludeGlob, normalizeIncludeGlob } from "./globs";
 
 // this method is called when your extension is activated
@@ -200,7 +201,11 @@ class RelativePath {
     }
 
     // Show dropdown editor
-    private showQuickPick(items: string[], editor: TextEditor): void {
+    private showQuickPick(
+        items: string[],
+        editor: TextEditor,
+        placeHolder?: string
+    ): void {
         if (items) {
             let paths: QuickPickItem[] = items.map((val: string) => {
                 let item: QuickPickItem = {
@@ -213,7 +218,8 @@ class RelativePath {
             let pickResult: Thenable<QuickPickItem>;
             pickResult = window.showQuickPick(paths, {
                 matchOnDescription: true,
-                placeHolder: `Type to filter ${items.length} files`,
+                placeHolder:
+                    placeHolder ?? `Type to filter ${items.length} files`,
             });
             pickResult.then((item: QuickPickItem) =>
                 this.returnRelativeLink(item, editor)
@@ -332,14 +338,28 @@ class RelativePath {
                         return;
                     }
 
-                    this.showQuickPick(
-                        this._fileNames.filter(
-                            (item) =>
-                                item.toLowerCase().indexOf(val.toLowerCase()) >
-                                -1
-                        ),
-                        editor
+                    const matches = this._fileNames.filter(
+                        (item) =>
+                            item.toLowerCase().indexOf(val.toLowerCase()) > -1
                     );
+
+                    if (matches.length === 0) {
+                        // No file contains the search text. Fall back to the
+                        // closest matches by Levenshtein distance so the user
+                        // gets a "did you mean" list instead of an empty one.
+                        const suggestions = getClosestMatches(
+                            val,
+                            this._fileNames
+                        );
+                        this.showQuickPick(
+                            suggestions,
+                            editor,
+                            `No files match "${val}". Showing the ${suggestions.length} closest names.`
+                        );
+                        return;
+                    }
+
+                    this.showQuickPick(matches, editor);
                 },
                 () => {
                     return;
