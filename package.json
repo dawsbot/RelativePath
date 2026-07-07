@@ -111,6 +111,11 @@
                     "default": 10000,
                     "description": "Max number of files shown directly in the quick filter picker. Above this, a search box is shown first to narrow results."
                 },
+                "relativePath.showRecentlyUsed": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show a 'recently used' section with your last picked paths at the top of the file picker."
+                },
                 "relativePath.maxFilesCached": {
                     "type": "integer",
                     "default": 100000,
