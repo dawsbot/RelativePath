@@ -11,7 +11,6 @@ import {
     QuickPickItemKind,
     RelativePattern,
     TextEditor,
-    TextEditorEdit,
     window,
     workspace,
     WorkspaceConfiguration,
@@ -20,6 +19,7 @@ import { getClosestMatches } from "./closest-match";
 import { shouldAddToCache } from "./glob-match";
 import { buildExcludeGlob, normalizeIncludeGlob } from "./globs";
 import { partitionByRecency, recordRecentPath } from "./recent-paths";
+import { replaceSelections } from "./replace-selections";
 import { isTruncated, resolveMaxResults } from "./search-limit";
 
 // this method is called when your extension is activated
@@ -364,17 +364,10 @@ class RelativePath {
                 });
             }
 
-            window.activeTextEditor.edit((editBuilder: TextEditorEdit) => {
-                // Get all selections
-                let selections = window.activeTextEditor.selections;
-
-                // Replace selections with relative Url.
-                selections.forEach((sel) => {
-                    editor.edit((editBuilder) => {
-                        editBuilder.replace(sel, relativeUrl);
-                    });
-                });
-            });
+            // Write every active cursor in one atomic edit. Separate edit()
+            // calls per selection are dropped by VS Code after the first,
+            // which broke multi-cursor insertions (issue #70).
+            replaceSelections(editor, relativeUrl);
         }
     }
 
