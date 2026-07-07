@@ -7,6 +7,7 @@
         "compile": "tsc -watch -p ./",
         "clean": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\"",
         "test": "npm run clean && tsc && node --test out/test/**/*.test.js",
+        "package": "vsce package",
         "prepare": "husky install",
         "postversion": "git push --follow-tags && gh release create \"v$npm_package_version\" --generate-notes"
     },
@@ -116,6 +117,7 @@
     "devDependencies": {
         "@types/node": "18.11.18",
         "@types/vscode": "1.75.0",
+        "@vscode/vsce": "^3.9.2",
         "husky": "^7.0.4",
         "lint-staged": "^12.4.1",
         "prettier": "^2.6.2",
