@@ -17,7 +17,12 @@ import {
 } from "vscode";
 import { getClosestMatches } from "./closest-match";
 import { shouldAddToCache } from "./glob-match";
-import { buildExcludeGlob, normalizeIncludeGlob } from "./globs";
+import {
+    buildExcludeGlob,
+    BuiltInExcludeMode,
+    collectBuiltInExcludes,
+    normalizeIncludeGlob,
+} from "./globs";
 import { partitionByRecency, recordRecentPath } from "./recent-paths";
 import { replaceSelections } from "./replace-selections";
 import { isTruncated, resolveMaxResults } from "./search-limit";
@@ -105,7 +110,7 @@ class RelativePath {
                 shouldAddToCache(
                     filePath.slice(workspacePrefix.length),
                     normalizeIncludeGlob(includeGlob),
-                    this._configuration.get("ignore")
+                    this.buildIgnoreGlobs()
                 )
             ) {
                 this._fileNames.push(filePath);
@@ -167,7 +172,7 @@ class RelativePath {
             this._workspacePath,
             normalizeIncludeGlob(includeGlob)
         );
-        const exclude = buildExcludeGlob(this._configuration.get("ignore"));
+        const exclude = buildExcludeGlob(this.buildIgnoreGlobs());
         const maxResults = resolveMaxResults(
             this._configuration.get("maxFilesCached")
         );
@@ -220,6 +225,32 @@ class RelativePath {
         this.updateFiles(skipOpen);
     }
 
+    // The globs excluded from both the findFiles scan and the file-creation
+    // watcher: the user's `relativePath.ignore` plus, when opted in via
+    // `relativePath.useBuiltInExcludes`, VS Code's own `files.exclude` and/or
+    // `search.exclude` so those don't have to be duplicated (issue #31).
+    private buildIgnoreGlobs(): string[] {
+        const ignore: string[] = this._configuration.get("ignore") ?? [];
+        const mode =
+            this._configuration.get<BuiltInExcludeMode>("useBuiltInExcludes");
+
+        if (!mode || mode === "none") {
+            return ignore;
+        }
+
+        const filesExclude = workspace
+            .getConfiguration("files")
+            .get<Record<string, unknown>>("exclude");
+        const searchExclude = workspace
+            .getConfiguration("search")
+            .get<Record<string, unknown>>("exclude");
+
+        return [
+            ...ignore,
+            ...collectBuiltInExcludes(mode, filesExclude, searchExclude),
+        ];
+    }
+
     // Compares the ignore property of _configuration to lastConfig
     private ignoreWasUpdated(
         currentIgnore: Array<string>,
@@ -240,6 +271,12 @@ class RelativePath {
             const lastConfig = this._configuration;
             this._configuration = workspace.getConfiguration("relativePath");
 
+            // When built-in excludes are active, VS Code's own `files.exclude`
+            // and `search.exclude` also shape our cache, so a change to either
+            // must trigger a rescan.
+            const builtInMode = this._configuration.get("useBuiltInExcludes");
+            const builtInActive = builtInMode && builtInMode !== "none";
+
             // Handle updates to the properties that shape the cached file
             // list if there are any
             if (
@@ -249,7 +286,12 @@ class RelativePath {
                 ) ||
                 this._configuration.maxFilesCached !==
                     lastConfig.maxFilesCached ||
-                this._configuration.includeGlob !== lastConfig.includeGlob
+                this._configuration.includeGlob !== lastConfig.includeGlob ||
+                this._configuration.useBuiltInExcludes !==
+                    lastConfig.useBuiltInExcludes ||
+                (builtInActive &&
+                    (e.affectsConfiguration("files.exclude") ||
+                        e.affectsConfiguration("search.exclude")))
             ) {
                 this.updateFiles(true);
             }

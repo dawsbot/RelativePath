@@ -1,3 +1,7 @@
+## Unreleased
+
+-   New `relativePath.useBuiltInExcludes` setting lets the picker also honor VS Code's built-in `files.exclude` and/or `search.exclude`, so you no longer have to duplicate those globs in `relativePath.ignore`. Options: `none` (default), `files`, `search`, `both`. (#31)
+
 ## 1.7.0
 
 Big-workspace release: scanning is now bounded, filters are enforced everywhere, and defaults got a refresh.
