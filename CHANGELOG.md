@@ -1,6 +1,6 @@
 ## Unreleased
 
--   New `relativePath.useBuiltInExcludes` setting lets the picker also honor VS Code's built-in `files.exclude` and/or `search.exclude`, so you no longer have to duplicate those globs in `relativePath.ignore`. Options: `none` (default), `files`, `search`, `both`. (#31)
+-   The picker now also honors VS Code's built-in `files.exclude` and `search.exclude` by default, so you no longer have to duplicate those globs in `relativePath.ignore`. Tune this with the new `relativePath.useBuiltInExcludes` setting: `both` (default), `files`, `search`, or `none` to restore the previous behavior of using only `relativePath.ignore`. (#31)
 
 ## 1.7.0
 
