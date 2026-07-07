@@ -31,62 +31,65 @@ requiring Enter.
 
 -   **Changes:** the `showQuickPick()` method in `src/extension.ts` (used by the
     `allowQuickFilter` branch).
+-   **New:** `src/picker-filter.ts` — the pure substring filter, plus
+    `test/picker-filter.test.ts`.
 -   **Unchanged:** `src/closest-match.ts`, the input-box path, and the
     `searchCountLimit` threshold.
 
 ## Design
 
-### Emptiness detection (the core decision)
+### Own the filtering (the core decision)
 
-The picker must offer suggestions exactly when VS Code's native filter comes up
-empty. **Do not predict that with a home-grown matcher.** A first attempt tested
-whether the query was a case-insensitive subsequence of any candidate path and
-treated "no subsequence" as empty. That was wrong in both directions and shipped
-a broken feature:
+The picker must offer suggestions exactly when the file list comes up empty. Two
+attempts to derive that from VS Code's built-in filter both failed:
 
--   VS Code's fuzzy matcher is **stricter** than a raw subsequence — e.g. `tp`
-    is a subsequence of `types.ts`, but VS Code still shows nothing. So the proxy
-    reported "has a match" while the user saw a blank list, and no suggestions
-    appeared.
--   Over a large file list, almost any short query is a subsequence of _some_
-    path, so the proxy reported "has a match" for nearly everything, and
-    suggestions basically never triggered ("no matter what I type").
+1. **Predict its emptiness** with a home-grown subsequence matcher. VS Code's
+   fuzzy matcher is stricter than a raw subsequence (`tp` is a subsequence of
+   `types.ts`, yet VS Code shows nothing), so the proxy reported "has a match"
+   while the user saw a blank list — and, over a large list, reported "has a
+   match" for nearly every short query, so suggestions basically never fired.
+2. **Read its result** via `quickPick.activeItems`. That value goes **stale** the
+   instant the filter empties — after typing `t` (matches `types.ts`) then `p`
+   (matches nothing), `activeItems` still held `types.ts`, so the code thought
+   there was a match and never offered suggestions.
 
-Instead, read VS Code's **actual** filter result. After VS Code filters the base
-items against the current value, `quickPick.activeItems` is empty exactly when
-nothing matched. That is ground truth and stays in lockstep with what the user
-sees, so native fuzzy matching and highlighting remain untouched for the happy
-path.
+The fix is to stop cooperating with the native filter and **own the match**.
+Every rendered row is given `alwaysShow: true`, which forces it past VS Code's
+built-in filter, so the picker displays exactly the items we set. On each
+keystroke we compute the matches ourselves (`filterPaths`), and "empty" becomes a
+value we control rather than a signal we read.
+
+`filterPaths` uses the same rule as the large-workspace input-box path: a file
+matches when the query is a case-insensitive substring of its workspace-relative
+path. Both picker paths now share one definition of "match", so
+`getClosestMatches` kicks in under exactly the same condition everywhere.
 
 ### Picker wiring
 
 Migrate `showQuickPick()` from the fire-and-forget `window.showQuickPick` to a
 managed `window.createQuickPick()`:
 
-1. Build the base item list (recently-used separators + files) exactly as today;
-   set `quickPick.items`, `matchOnDescription = true`, and the placeholder.
-2. `onDidChangeValue`: clear any pending timer. If suggestions are currently on
-   screen, immediately restore the base list (so the user sees native filtering
-   for the new value at once, never a stale "did you mean"). Then start a ~150ms
-   debounce.
-3. On debounce fire (the user has paused, and VS Code has finished filtering the
-   base list against the current value):
-    - `value === ""` → restore base list + placeholder.
-    - `quickPick.activeItems.length > 0` → native filter has matches; leave them.
-    - otherwise → `getClosestMatches(value, items)`; if non-empty, set items to a
-      `did you mean` separator followed by the suggestions, each with
-      `alwaysShow: true` (so VS Code's filter doesn't drop names that don't match
-      the typed text); set placeholder to
-      `No files match "<value>". Showing the N closest names.`
-4. `onDidAccept`: resolve `selectedItems[0]` via `returnRelativeLink`, then
+1. Build the base item list (recently-used separators + files) as today, mark
+   every item `alwaysShow: true`, and set it as the initial `items`.
+2. `onDidChangeValue(value)`: clear any pending timer, then:
+    - `value === ""` → show the full base list.
+    - `filterPaths(value, items)` non-empty → show those matches (each
+      `alwaysShow`), with the base placeholder.
+    - otherwise → set `items` to `[]` (VS Code shows its empty state) and start a
+      ~150ms debounce. On fire, `getClosestMatches(value, items)`; if non-empty,
+      set `items` to a `did you mean` separator followed by the suggestions (each
+      `alwaysShow`) and update the placeholder to
+      `No files match "<value>". Showing the N closest names.` The debounce keeps
+      mid-word typing (`x` → `xy` → `xyz`) from flashing a suggestion list you're
+      about to type past.
+3. `onDidAccept`: resolve `selectedItems[0]` via `returnRelativeLink`, then
    `hide()`. Works for both real matches and suggestion items (both carry a
    `description` = relative path).
-5. `onDidHide`: clear the debounce timer and `dispose()` the quick pick, so the
+4. `onDidHide`: clear the debounce timer and `dispose()` the quick pick, so the
    timer never fires against a disposed picker.
 
-Debouncing before reading `activeItems` also removes any race: 150ms after the
-last keystroke, VS Code has settled its filter, so the read is reliable without
-depending on `onDidChangeActive` ordering.
+`matchOnDescription = true` stays on purely for match highlighting; it no longer
+affects which rows show, because `alwaysShow` overrides filtering.
 
 Both `showQuickPick` callers (quick-filter path and the input-box sub-lists)
 share this logic; it operates on whatever `items` were passed, so no caller
@@ -94,10 +97,13 @@ needs special-casing.
 
 ## Testing
 
+-   Unit-test `filterPaths`: substring hit, path-segment match, case
+    insensitivity, abbreviation → no match, no workspace-prefix match, empty
+    query.
 -   `closest-match.ts` retains its existing coverage.
--   The picker-wiring layer reacts to VS Code's own filter result and cannot be
-    unit-tested without the extension host
-    API; it is exercised manually in the Extension Development Host.
+-   The picker-wiring layer (createQuickPick events, `alwaysShow`, debounce)
+    depends on the VS Code API and is exercised manually in the Extension
+    Development Host.
 
 ## Edge cases
 
