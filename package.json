@@ -95,8 +95,8 @@
                         "Also hide files matched by the built-in search.exclude setting.",
                         "Also hide files matched by either files.exclude or search.exclude."
                     ],
-                    "default": "none",
-                    "description": "Also hide files matched by VS Code's built-in 'files.exclude' and/or 'search.exclude' settings, so you don't have to duplicate them in 'relativePath.ignore'."
+                    "default": "both",
+                    "description": "Also hide files matched by VS Code's built-in 'files.exclude' and/or 'search.exclude' settings, so you don't have to duplicate them in 'relativePath.ignore'. Set to 'none' to use only 'relativePath.ignore'."
                 },
                 "relativePath.removeExtension": {
                     "type": "boolean",
