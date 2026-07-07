@@ -22,7 +22,6 @@ import {
     collectExcludeGlobs,
     normalizeIncludeGlob,
 } from "./globs";
-import { hasAnyFuzzyMatch } from "./picker-suggestions";
 import { partitionByRecency, recordRecentPath } from "./recent-paths";
 import { replaceSelections } from "./replace-selections";
 import { isTruncated, resolveMaxResults } from "./search-limit";
@@ -347,17 +346,9 @@ class RelativePath {
         const basePlaceholder =
             placeHolder ?? `Type to filter ${items.length} files`;
 
-        // The relative paths VS Code's filter matches against (label +
-        // description, with matchOnDescription on). Comparing the query to
-        // these tells us when the native filter would come up empty so we can
-        // swap in "did you mean" suggestions instead.
-        const candidates = items.map((item) =>
-            item.replace(this._workspacePath, "")
-        );
-
         // A managed quick pick, not the fire-and-forget window.showQuickPick,
-        // so we can watch typing and inject closest-match suggestions the
-        // moment the query stops matching any file (issue #84).
+        // so we can watch typing and offer closest-match suggestions when the
+        // query matches nothing (issue #84).
         const quickPick = window.createQuickPick();
         quickPick.matchOnDescription = true;
         quickPick.placeholder = basePlaceholder;
@@ -366,30 +357,48 @@ class RelativePath {
         let debounce: ReturnType<typeof setTimeout> | undefined;
         let showingSuggestions = false;
 
-        const restoreBase = () => {
-            if (showingSuggestions) {
-                quickPick.items = basePaths;
-                quickPick.placeholder = basePlaceholder;
-                showingSuggestions = false;
-            }
+        const showBase = () => {
+            showingSuggestions = false;
+            quickPick.items = basePaths;
+            quickPick.placeholder = basePlaceholder;
         };
 
-        quickPick.onDidChangeValue((value) => {
+        quickPick.onDidChangeValue(() => {
             if (debounce) {
                 clearTimeout(debounce);
             }
 
-            // Let VS Code's native filter handle the happy path; only step in
-            // once the user pauses, so suggestions don't flash mid-word. The
-            // decision is recomputed from the immutable base list every time,
-            // so it toggles back to real matches as the user keeps typing.
+            // The query changed, so any suggestions on screen are stale: drop
+            // straight back to the native-filtered list while the user is still
+            // typing. We only decide about suggestions after a short pause.
+            if (showingSuggestions) {
+                showBase();
+            }
+
             debounce = setTimeout(() => {
-                if (value === "" || hasAnyFuzzyMatch(value, candidates)) {
-                    restoreBase();
+                const value = quickPick.value;
+                if (value === "") {
+                    showBase();
+                    return;
+                }
+
+                // Ground truth for "the native filter came up empty": VS Code
+                // has filtered basePaths against `value` and left activeItems
+                // empty. We read its result instead of predicting it, because
+                // its fuzzy matcher is stricter than a plain subsequence
+                // (e.g. "tp" is a subsequence of "types.ts" yet VS Code shows
+                // nothing), so any home-grown proxy diverges from what the user
+                // actually sees.
+                if (quickPick.activeItems.length > 0) {
                     return;
                 }
 
                 const suggestions = getClosestMatches(value, items);
+                if (suggestions.length === 0) {
+                    return;
+                }
+
+                showingSuggestions = true;
                 quickPick.items = [
                     {
                         label: "did you mean",
@@ -397,13 +406,12 @@ class RelativePath {
                     },
                     ...suggestions.map((suggestion) => ({
                         ...toQuickPickItem(suggestion),
-                        // These names don't contain the typed text by
-                        // definition, so force them past VS Code's filter.
+                        // These names don't match the typed text (that's why the
+                        // native filter was empty), so force them past it.
                         alwaysShow: true,
                     })),
                 ];
                 quickPick.placeholder = `No files match "${value}". Showing the ${suggestions.length} closest names.`;
-                showingSuggestions = true;
             }, SUGGESTION_DEBOUNCE_MS);
         });
 

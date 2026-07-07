@@ -31,8 +31,6 @@ requiring Enter.
 
 -   **Changes:** the `showQuickPick()` method in `src/extension.ts` (used by the
     `allowQuickFilter` branch).
--   **New:** `src/picker-suggestions.ts` — a pure helper deciding whether the
-    native filter would be empty, plus `test/picker-suggestions.test.ts`.
 -   **Unchanged:** `src/closest-match.ts`, the input-box path, and the
     `searchCountLimit` threshold.
 
@@ -40,27 +38,25 @@ requiring Enter.
 
 ### Emptiness detection (the core decision)
 
-VS Code's quick-pick filter matches an item when the query is a
-**case-insensitive subsequence** of its label or description (with
-`matchOnDescription = true`, the description is the workspace-relative path). So
-the picker is empty exactly when the query is not a subsequence of any
-candidate's relative path.
+The picker must offer suggestions exactly when VS Code's native filter comes up
+empty. **Do not predict that with a home-grown matcher.** A first attempt tested
+whether the query was a case-insensitive subsequence of any candidate path and
+treated "no subsequence" as empty. That was wrong in both directions and shipped
+a broken feature:
 
-We must NOT reimplement filtering ourselves — native fuzzy matching and
-highlighting stay on for the happy path. We only need a proxy for "is the list
-empty", computed from the immutable candidate list and the current value:
+-   VS Code's fuzzy matcher is **stricter** than a raw subsequence — e.g. `tp`
+    is a subsequence of `types.ts`, but VS Code still shows nothing. So the proxy
+    reported "has a match" while the user saw a blank list, and no suggestions
+    appeared.
+-   Over a large file list, almost any short query is a subsequence of _some_
+    path, so the proxy reported "has a match" for nearly everything, and
+    suggestions basically never triggered ("no matter what I type").
 
-```ts
-// src/picker-suggestions.ts
-export function isFuzzyMatch(query: string, target: string): boolean; // subsequence, case-insensitive
-export function hasAnyFuzzyMatch(query: string, candidates: string[]): boolean; // .some short-circuit
-```
-
-Testing against the relative path (a superset of the basename) matches VS Code's
-label+description behavior. This keeps our "empty?" verdict aligned with what the
-user actually sees, so suggestions appear for genuine typos (e.g. `bztton`) but
-NOT for abbreviations like `btn`, which VS Code's own fuzzy filter still resolves
-to `Button.tsx`.
+Instead, read VS Code's **actual** filter result. After VS Code filters the base
+items against the current value, `quickPick.activeItems` is empty exactly when
+nothing matched. That is ground truth and stays in lockstep with what the user
+sees, so native fuzzy matching and highlighting remain untouched for the happy
+path.
 
 ### Picker wiring
 
@@ -69,23 +65,28 @@ managed `window.createQuickPick()`:
 
 1. Build the base item list (recently-used separators + files) exactly as today;
    set `quickPick.items`, `matchOnDescription = true`, and the placeholder.
-   Precompute the candidates' relative paths once for the emptiness test.
-2. `onDidChangeValue(value)`: clear any pending timer; start a ~150ms debounce.
-   On fire:
-    - `value === ""` or `hasAnyFuzzyMatch(value, relativePaths)` → restore base
-      items + placeholder (native filter shows the matches).
-    - otherwise → `getClosestMatches(value, items)`; set items to a
+2. `onDidChangeValue`: clear any pending timer. If suggestions are currently on
+   screen, immediately restore the base list (so the user sees native filtering
+   for the new value at once, never a stale "did you mean"). Then start a ~150ms
+   debounce.
+3. On debounce fire (the user has paused, and VS Code has finished filtering the
+   base list against the current value):
+    - `value === ""` → restore base list + placeholder.
+    - `quickPick.activeItems.length > 0` → native filter has matches; leave them.
+    - otherwise → `getClosestMatches(value, items)`; if non-empty, set items to a
       `did you mean` separator followed by the suggestions, each with
-      `alwaysShow: true` (so VS Code's filter doesn't drop names that don't
-      contain the typed text); set placeholder to
+      `alwaysShow: true` (so VS Code's filter doesn't drop names that don't match
+      the typed text); set placeholder to
       `No files match "<value>". Showing the N closest names.`
-      The decision is always recomputed from the immutable base list + current
-      value, so it toggles correctly in both directions as the user keeps typing.
-3. `onDidAccept`: resolve `selectedItems[0]` via `returnRelativeLink`, then
+4. `onDidAccept`: resolve `selectedItems[0]` via `returnRelativeLink`, then
    `hide()`. Works for both real matches and suggestion items (both carry a
    `description` = relative path).
-4. `onDidHide`: clear the debounce timer and `dispose()` the quick pick, so the
+5. `onDidHide`: clear the debounce timer and `dispose()` the quick pick, so the
    timer never fires against a disposed picker.
+
+Debouncing before reading `activeItems` also removes any race: 150ms after the
+last keystroke, VS Code has settled its filter, so the read is reliable without
+depending on `onDidChangeActive` ordering.
 
 Both `showQuickPick` callers (quick-filter path and the input-box sub-lists)
 share this logic; it operates on whatever `items` were passed, so no caller
@@ -93,10 +94,9 @@ needs special-casing.
 
 ## Testing
 
--   Unit-test `isFuzzyMatch` / `hasAnyFuzzyMatch`: subsequence hits, case
-    insensitivity, typo → no match, abbreviation → match, empty query.
 -   `closest-match.ts` retains its existing coverage.
--   The picker-wiring layer is a thin adapter over pure functions and the VS Code
+-   The picker-wiring layer reacts to VS Code's own filter result and cannot be
+    unit-tested without the extension host
     API; it is exercised manually in the Extension Development Host.
 
 ## Edge cases
@@ -105,5 +105,5 @@ needs special-casing.
 -   Debounce timer cleared on every keystroke and on hide/accept.
 -   Selecting a suggestion resolves a real relative path (same item shape as
     matches).
--   Large workspaces: emptiness test is a short-circuiting `.some` over <10k
-    relative paths per debounced keystroke — negligible cost.
+-   `getClosestMatches` returns nothing (empty workspace) → leave the native
+    empty state rather than an empty "did you mean".
