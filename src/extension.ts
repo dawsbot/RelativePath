@@ -142,8 +142,11 @@ class RelativePath {
         const editor = window.activeTextEditor;
         if (editor) {
             const res = editor.document.uri;
+            // The active file may live outside every workspace folder
+            // (window opened without a folder, untitled or virtual docs);
+            // there is no base path to resolve against then.
             const folder = workspace.getWorkspaceFolder(res);
-            return folder.uri.fsPath.replace(/\\/g, "/");
+            return folder?.uri.fsPath.replace(/\\/g, "/");
         }
     }
     // Purely updates the files
