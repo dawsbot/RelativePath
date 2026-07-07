@@ -14,8 +14,8 @@ import {
     workspace,
     WorkspaceConfiguration,
 } from "vscode";
+import { getClosestMatches } from "./closest-match";
 import { buildExcludeGlob, normalizeIncludeGlob } from "./globs";
-import { getClosestMatches } from "./levenshtein";
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
