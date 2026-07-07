@@ -4,6 +4,10 @@ out/test/**
 test/**
 src/**
 **/*.map
+**/*.un~
+.husky/**
 .gitignore
+.vscodeignore
 tsconfig.json
 vsc-extension-quickstart.md
+*.vsix

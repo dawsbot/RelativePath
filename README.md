@@ -73,6 +73,23 @@ frequent switches between folders might slow you down.
 The caching of the filelist in the project happens only once. If your workspace contains a lot of files
 please wait for the initial file list to be created.
 
+## Building the VSIX
+
+To build an installable `.vsix` yourself:
+
+```bash
+npm install
+npm run package
+```
+
+This compiles the extension and writes `RelativePath-<version>.vsix` to the project root. Install it with:
+
+```bash
+code --install-extension RelativePath-<version>.vsix
+```
+
+(Or in VS Code: Extensions view → `...` menu → **Install from VSIX**.)
+
 ## Bugs
 
 Report them [here](https://github.com/jakob101/RelativePath).
