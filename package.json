@@ -63,6 +63,13 @@
                         "**/node_modules/**",
                         "**/.husky/**",
                         "**/.next/**",
+                        "**/dist/**",
+                        "**/build/**",
+                        "**/coverage/**",
+                        "**/.turbo/**",
+                        "**/.cache/**",
+                        "**/.venv/**",
+                        "**/__pycache__/**",
                         "**/*.dll",
                         "**/*.swp",
                         "**/*.un~",
@@ -101,8 +108,8 @@
                 },
                 "relativePath.searchCountLimit": {
                     "type": "integer",
-                    "default": 1000,
-                    "description": "Max number of files searched in quick filter. Extending this may lead to performance issues."
+                    "default": 10000,
+                    "description": "Max number of files shown directly in the quick filter picker. Above this, a search box is shown first to narrow results."
                 },
                 "relativePath.maxFilesCached": {
                     "type": "integer",
