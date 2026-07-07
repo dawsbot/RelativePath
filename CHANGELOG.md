@@ -1,5 +1,6 @@
 ## Unreleased
 
+-   "Did you mean" suggestions now appear live while you type. When your query stops matching any file, the closest file names (by fuzzy and edit distance) show up under a `did you mean` separator, without waiting for you to press Enter. Previously these suggestions only ever appeared in the large-workspace search box, and only after Enter. (#84)
 -   The picker now also honors VS Code's built-in `search.exclude` by default, so you no longer have to duplicate those globs in `relativePath.ignore`. (`files.exclude` was already applied to the file scan by VS Code; it is now also applied to files created after the scan, keeping the cache consistent.) Opt out with the new `relativePath.respectSearchExclude: false`. (#31)
 
 ## 1.7.0
