@@ -16,6 +16,7 @@ import {
 } from "vscode";
 import { getClosestMatches } from "./closest-match";
 import { buildExcludeGlob, normalizeIncludeGlob } from "./globs";
+import { isTruncated, resolveMaxResults } from "./search-limit";
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -37,6 +38,7 @@ export function activate(context: ExtensionContext) {
 
 class RelativePath {
     private _fileNames: string[];
+    private _truncated: boolean;
     private _watcher: FileSystemWatcher;
     private _workspacePath: string;
     private _configuration: WorkspaceConfiguration;
@@ -44,6 +46,7 @@ class RelativePath {
 
     constructor() {
         this._fileNames = null;
+        this._truncated = false;
         this._tokenSource = null;
         this._workspacePath = this.getWorkspaceFolder();
         this._configuration = workspace.getConfiguration("relativePath");
@@ -120,9 +123,12 @@ class RelativePath {
             normalizeIncludeGlob(includeGlob)
         );
         const exclude = buildExcludeGlob(this._configuration.get("ignore"));
+        const maxResults = resolveMaxResults(
+            this._configuration.get("maxFilesCached")
+        );
 
         workspace
-            .findFiles(include, exclude, undefined, tokenSource.token)
+            .findFiles(include, exclude, maxResults, tokenSource.token)
             .then((files) => {
                 if (this._tokenSource !== tokenSource) {
                     // A newer search superseded this one
@@ -134,6 +140,7 @@ class RelativePath {
                     return;
                 }
 
+                this._truncated = isTruncated(files.length, maxResults);
                 this._fileNames = files.map((file) =>
                     file.fsPath.replace(/\\/g, "/")
                 );
@@ -188,12 +195,14 @@ class RelativePath {
             const lastConfig = this._configuration;
             this._configuration = workspace.getConfiguration("relativePath");
 
-            // Handle updates to the ignored property if there's one
+            // Handle updates to the properties that shape the cached file
+            // list if there are any
             if (
                 this.ignoreWasUpdated(
                     this._configuration.ignore,
                     lastConfig.ignore
-                )
+                ) ||
+                this._configuration.maxFilesCached !== lastConfig.maxFilesCached
             ) {
                 this.updateFiles(true);
             }
@@ -319,11 +328,21 @@ class RelativePath {
         const allowQuickFilter =
             this._configuration.searchCountLimit > this._fileNames.length;
 
+        // When the scan stopped at relativePath.maxFilesCached, say so
+        // instead of presenting a silently partial list.
+        const foundLabel = this._truncated
+            ? `Found the first ${this._fileNames.length} files (capped by 'relativePath.maxFilesCached')`
+            : `Found ${this._fileNames.length} files`;
+
         if (allowQuickFilter) {
-            this.showQuickPick(this._fileNames, editor);
+            this.showQuickPick(
+                this._fileNames,
+                editor,
+                this._truncated ? `${foundLabel}. Type to filter.` : undefined
+            );
         } else {
             // Don't filter on too many files. Show the input search box instead
-            const placeHolder = `Found ${this._fileNames.length} files but your limit is ${this._configuration.searchCountLimit}. Start typing or ignore files with 'relativePath.ignore' in settings.`;
+            const placeHolder = `${foundLabel} but your limit is ${this._configuration.searchCountLimit}. Start typing or ignore files with 'relativePath.ignore' in settings.`;
             const input = window.showInputBox({ placeHolder });
             input.then(
                 (val) => {

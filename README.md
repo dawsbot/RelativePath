@@ -48,6 +48,11 @@ They can be set in user preferences (`ctrl+,` or `cmd+,`) or workspace settings 
 // Extending this may lead to performance issues
 "relativePath.searchCountLimit": 1000,
 
+// Max number of files scanned and cached from the workspace. Bounds memory and
+// scan time on very large workspaces; the picker indicates when results were
+// truncated. Set to 0 for no limit.
+"relativePath.maxFilesCached": 100000,
+
 // Removes the leading ./ character when the path is pointing to a parent folder.
 "relativePath.removeLeadingDot": true,
 
