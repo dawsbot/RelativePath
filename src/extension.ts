@@ -22,6 +22,7 @@ import {
     collectExcludeGlobs,
     normalizeIncludeGlob,
 } from "./globs";
+import { filterPaths } from "./picker-filter";
 import { partitionByRecency, recordRecentPath } from "./recent-paths";
 import { replaceSelections } from "./replace-selections";
 import { isTruncated, resolveMaxResults } from "./search-limit";
@@ -45,6 +46,12 @@ export function activate(context: ExtensionContext) {
 }
 
 const RECENTLY_USED_KEY = "relativePath.recentlyUsed";
+
+// How long the picker waits after the last keystroke before deciding the query
+// matches nothing and swapping in "did you mean" suggestions. Short enough to
+// feel live, long enough that mid-word typing (x -> xy -> xyz) doesn't flash a
+// suggestion list you're about to type past (issue #84).
+const SUGGESTION_DEBOUNCE_MS = 150;
 
 class RelativePath {
     private _fileNames: string[];
@@ -305,46 +312,120 @@ class RelativePath {
         editor: TextEditor,
         placeHolder?: string
     ): void {
-        if (items) {
-            const toQuickPickItem = (val: string): QuickPickItem => ({
-                description: val.replace(this._workspacePath, ""),
-                label: val.split("/").pop(),
-            });
-
-            // Surface the paths the user picked before above the rest of the
-            // list, mirroring VS Code's own "recently opened" behavior.
-            const { recent, rest } = this._configuration.get("showRecentlyUsed")
-                ? partitionByRecency(items, this._state.get(RECENTLY_USED_KEY))
-                : { recent: [], rest: items };
-
-            const paths: QuickPickItem[] =
-                recent.length > 0
-                    ? [
-                          {
-                              label: "recently used",
-                              kind: QuickPickItemKind.Separator,
-                          },
-                          ...recent.map(toQuickPickItem),
-                          {
-                              label: "other files",
-                              kind: QuickPickItemKind.Separator,
-                          },
-                          ...rest.map(toQuickPickItem),
-                      ]
-                    : items.map(toQuickPickItem);
-
-            let pickResult: Thenable<QuickPickItem>;
-            pickResult = window.showQuickPick(paths, {
-                matchOnDescription: true,
-                placeHolder:
-                    placeHolder ?? `Type to filter ${items.length} files`,
-            });
-            pickResult.then((item: QuickPickItem) =>
-                this.returnRelativeLink(item, editor)
-            );
-        } else {
+        if (!items) {
             window.showInformationMessage("No files to show.");
+            return;
         }
+
+        const toQuickPickItem = (val: string): QuickPickItem => ({
+            description: val.replace(this._workspacePath, ""),
+            label: val.split("/").pop(),
+        });
+
+        // Surface the paths the user picked before above the rest of the
+        // list, mirroring VS Code's own "recently opened" behavior.
+        const { recent, rest } = this._configuration.get("showRecentlyUsed")
+            ? partitionByRecency(items, this._state.get(RECENTLY_USED_KEY))
+            : { recent: [], rest: items };
+
+        const basePaths: QuickPickItem[] =
+            recent.length > 0
+                ? [
+                      {
+                          label: "recently used",
+                          kind: QuickPickItemKind.Separator,
+                      },
+                      ...recent.map(toQuickPickItem),
+                      {
+                          label: "other files",
+                          kind: QuickPickItemKind.Separator,
+                      },
+                      ...rest.map(toQuickPickItem),
+                  ]
+                : items.map(toQuickPickItem);
+
+        const basePlaceholder =
+            placeHolder ?? `Type to filter ${items.length} files`;
+
+        // Force every rendered row past VS Code's built-in filter so WE decide
+        // what shows. Two earlier attempts cooperated with the native filter
+        // (predicting its emptiness, then reading its `activeItems`) and both
+        // failed: the fuzzy matcher is opaque and `activeItems` goes stale the
+        // instant the filter empties. Owning the match makes "no results" a
+        // value we compute, so the suggestion fallback fires reliably (#84).
+        const asAlwaysShown = (item: QuickPickItem): QuickPickItem => ({
+            ...item,
+            alwaysShow: true,
+        });
+
+        // A managed quick pick, not the fire-and-forget window.showQuickPick,
+        // so we can watch typing and offer closest-match suggestions when the
+        // query matches nothing (issue #84).
+        const quickPick = window.createQuickPick();
+        quickPick.matchOnDescription = true;
+        quickPick.placeholder = basePlaceholder;
+        quickPick.items = basePaths.map(asAlwaysShown);
+
+        let debounce: ReturnType<typeof setTimeout> | undefined;
+
+        quickPick.onDidChangeValue((value) => {
+            if (debounce) {
+                clearTimeout(debounce);
+            }
+
+            if (value === "") {
+                quickPick.items = basePaths.map(asAlwaysShown);
+                quickPick.placeholder = basePlaceholder;
+                return;
+            }
+
+            const matches = filterPaths(value, items, this._workspacePath);
+            if (matches.length > 0) {
+                quickPick.items = matches.map((match) =>
+                    asAlwaysShown(toQuickPickItem(match))
+                );
+                quickPick.placeholder = basePlaceholder;
+                return;
+            }
+
+            // No file matched. Show the empty state now, then swap in the
+            // closest names after a short pause so mid-word typing
+            // (x -> xy -> xyz) doesn't flash a suggestion list you're about to
+            // type past.
+            quickPick.items = [];
+            quickPick.placeholder = `No files match "${value}".`;
+            debounce = setTimeout(() => {
+                const suggestions = getClosestMatches(value, items);
+                if (suggestions.length === 0) {
+                    return;
+                }
+                quickPick.items = [
+                    {
+                        label: "did you mean",
+                        kind: QuickPickItemKind.Separator,
+                    },
+                    ...suggestions.map((suggestion) =>
+                        asAlwaysShown(toQuickPickItem(suggestion))
+                    ),
+                ];
+                quickPick.placeholder = `No files match "${value}". Showing the ${suggestions.length} closest names.`;
+            }, SUGGESTION_DEBOUNCE_MS);
+        });
+
+        quickPick.onDidAccept(() => {
+            const [selected] = quickPick.selectedItems;
+            quickPick.hide();
+            this.returnRelativeLink(selected, editor);
+        });
+
+        quickPick.onDidHide(() => {
+            if (debounce) {
+                clearTimeout(debounce);
+            }
+            quickPick.dispose();
+        });
+
+        quickPick.show();
     }
 
     // Check if the current extension should be excluded
