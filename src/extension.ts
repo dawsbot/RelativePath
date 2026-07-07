@@ -15,6 +15,7 @@ import {
     WorkspaceConfiguration,
 } from "vscode";
 import { getClosestMatches } from "./closest-match";
+import { shouldAddToCache } from "./glob-match";
 import { buildExcludeGlob, normalizeIncludeGlob } from "./globs";
 import { isTruncated, resolveMaxResults } from "./search-limit";
 
@@ -69,9 +70,39 @@ class RelativePath {
             IGNORE_DELETE_EVENTS
         );
 
-        // Add a file on creation
+        // Add a file on creation, applying the same include/ignore/cap
+        // filters as the findFiles scan so bulk creations in ignored folders
+        // (e.g. npm install) don't flood the cache.
         this._watcher.onDidCreate((e) => {
-            this._fileNames.push(e.fsPath.replace(/\\/g, "/"));
+            if (!this._fileNames) {
+                // Initial scan hasn't finished; it will pick this file up.
+                return;
+            }
+
+            const filePath = e.fsPath.replace(/\\/g, "/");
+            const workspacePrefix = `${this._workspacePath}/`;
+            if (!filePath.startsWith(workspacePrefix)) {
+                return;
+            }
+
+            const maxResults = resolveMaxResults(
+                this._configuration.get("maxFilesCached")
+            );
+            if (isTruncated(this._fileNames.length, maxResults)) {
+                this._truncated = true;
+                return;
+            }
+
+            const includeGlob: string = this._configuration.get("includeGlob");
+            if (
+                shouldAddToCache(
+                    filePath.slice(workspacePrefix.length),
+                    normalizeIncludeGlob(includeGlob),
+                    this._configuration.get("ignore")
+                )
+            ) {
+                this._fileNames.push(filePath);
+            }
         });
 
         // on change active text editor refresh the cache
@@ -89,6 +120,10 @@ class RelativePath {
 
         // Remove a file on deletion
         this._watcher.onDidDelete((e) => {
+            if (!this._fileNames) {
+                return;
+            }
+
             let item = e.fsPath.replace(/\\/g, "/");
             let index = this._fileNames.indexOf(item);
             if (index > -1) {
@@ -202,7 +237,9 @@ class RelativePath {
                     this._configuration.ignore,
                     lastConfig.ignore
                 ) ||
-                this._configuration.maxFilesCached !== lastConfig.maxFilesCached
+                this._configuration.maxFilesCached !==
+                    lastConfig.maxFilesCached ||
+                this._configuration.includeGlob !== lastConfig.includeGlob
             ) {
                 this.updateFiles(true);
             }
