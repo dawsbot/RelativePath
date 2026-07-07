@@ -8,8 +8,8 @@
         "clean": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\"",
         "test": "npm run clean && tsc && node --test out/test/**/*.test.js",
         "package": "vsce package",
-        "prepare": "husky install",
-        "postversion": "git push --follow-tags && gh release create \"v$npm_package_version\" --generate-notes"
+        "release": "bash scripts/publish.sh",
+        "prepare": "husky install"
     },
     "repository": {
         "type": "git",
