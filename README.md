@@ -29,8 +29,20 @@ They can be set in user preferences (`ctrl+,` or `cmd+,`) or workspace settings 
 
 // An array of glob keys to ignore when searching.
 "relativePath.ignore": [
+	"**/.git/**",
 	"**/node_modules/**",
+	"**/.husky/**",
+	"**/.next/**",
+	"**/dist/**",
+	"**/build/**",
+	"**/coverage/**",
+	"**/.turbo/**",
+	"**/.cache/**",
+	"**/.venv/**",
+	"**/__pycache__/**",
 	"**/*.dll",
+	"**/*.swp",
+	"**/*.un~",
 	"**/obj/**",
 	"**/objd/**"
 ],
@@ -44,9 +56,9 @@ They can be set in user preferences (`ctrl+,` or `cmd+,`) or workspace settings 
 	".ts"
 ],
 
-// For performance optimization the default limit for quick filter is 1,000 files.
-// Extending this may lead to performance issues
-"relativePath.searchCountLimit": 1000,
+// Max number of files shown directly in the quick filter picker.
+// Above this, a search box is shown first to narrow results.
+"relativePath.searchCountLimit": 10000,
 
 // Max number of files scanned and cached from the workspace. Bounds memory and
 // scan time on very large workspaces; the picker indicates when results were
