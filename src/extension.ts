@@ -19,8 +19,7 @@ import { getClosestMatches } from "./closest-match";
 import { shouldAddToCache } from "./glob-match";
 import {
     buildExcludeGlob,
-    BuiltInExcludeMode,
-    collectBuiltInExcludes,
+    collectExcludeGlobs,
     normalizeIncludeGlob,
 } from "./globs";
 import { partitionByRecency, recordRecentPath } from "./recent-paths";
@@ -226,29 +225,31 @@ class RelativePath {
     }
 
     // The globs excluded from both the findFiles scan and the file-creation
-    // watcher: the user's `relativePath.ignore` plus, when opted in via
-    // `relativePath.useBuiltInExcludes`, VS Code's own `files.exclude` and/or
-    // `search.exclude` so those don't have to be duplicated (issue #31).
+    // watcher: the user's `relativePath.ignore` plus VS Code's own built-in
+    // excludes so those don't have to be duplicated (issue #31).
+    //
+    // `files.exclude` is always merged in: findFiles applies it to the scan no
+    // matter what we pass (short of a `null` exclude, which would also drop our
+    // own ignore globs), so we add it to keep the creation watcher consistent
+    // with that. `search.exclude` is opt-in via
+    // `relativePath.respectSearchExclude` (default true), because findFiles
+    // never applies it on its own.
     private buildIgnoreGlobs(): string[] {
         const ignore: string[] = this._configuration.get("ignore") ?? [];
-        const mode =
-            this._configuration.get<BuiltInExcludeMode>("useBuiltInExcludes");
-
-        if (!mode || mode === "none") {
-            return ignore;
-        }
 
         const filesExclude = workspace
             .getConfiguration("files")
             .get<Record<string, unknown>>("exclude");
-        const searchExclude = workspace
-            .getConfiguration("search")
-            .get<Record<string, unknown>>("exclude");
+        const globs = [...ignore, ...collectExcludeGlobs(filesExclude)];
 
-        return [
-            ...ignore,
-            ...collectBuiltInExcludes(mode, filesExclude, searchExclude),
-        ];
+        if (this._configuration.get("respectSearchExclude")) {
+            const searchExclude = workspace
+                .getConfiguration("search")
+                .get<Record<string, unknown>>("exclude");
+            globs.push(...collectExcludeGlobs(searchExclude));
+        }
+
+        return globs;
     }
 
     // Compares the ignore property of _configuration to lastConfig
@@ -271,11 +272,12 @@ class RelativePath {
             const lastConfig = this._configuration;
             this._configuration = workspace.getConfiguration("relativePath");
 
-            // When built-in excludes are active, VS Code's own `files.exclude`
-            // and `search.exclude` also shape our cache, so a change to either
-            // must trigger a rescan.
-            const builtInMode = this._configuration.get("useBuiltInExcludes");
-            const builtInActive = builtInMode && builtInMode !== "none";
+            // VS Code's own `files.exclude` always shapes our cache, and
+            // `search.exclude` does too while it's respected, so a change to
+            // either must trigger a rescan.
+            const respectSearch = this._configuration.get(
+                "respectSearchExclude"
+            );
 
             // Handle updates to the properties that shape the cached file
             // list if there are any
@@ -287,11 +289,10 @@ class RelativePath {
                 this._configuration.maxFilesCached !==
                     lastConfig.maxFilesCached ||
                 this._configuration.includeGlob !== lastConfig.includeGlob ||
-                this._configuration.useBuiltInExcludes !==
-                    lastConfig.useBuiltInExcludes ||
-                (builtInActive &&
-                    (e.affectsConfiguration("files.exclude") ||
-                        e.affectsConfiguration("search.exclude")))
+                this._configuration.respectSearchExclude !==
+                    lastConfig.respectSearchExclude ||
+                e.affectsConfiguration("files.exclude") ||
+                (respectSearch && e.affectsConfiguration("search.exclude"))
             ) {
                 this.updateFiles(true);
             }
