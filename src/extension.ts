@@ -6,7 +6,9 @@ import {
     commands,
     ExtensionContext,
     FileSystemWatcher,
+    Memento,
     QuickPickItem,
+    QuickPickItemKind,
     RelativePattern,
     TextEditor,
     TextEditorEdit,
@@ -17,12 +19,13 @@ import {
 import { getClosestMatches } from "./closest-match";
 import { shouldAddToCache } from "./glob-match";
 import { buildExcludeGlob, normalizeIncludeGlob } from "./globs";
+import { partitionByRecency, recordRecentPath } from "./recent-paths";
 import { isTruncated, resolveMaxResults } from "./search-limit";
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: ExtensionContext) {
-    let relativePath = new RelativePath();
+    let relativePath = new RelativePath(context.workspaceState);
 
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with  registerCommand
@@ -37,6 +40,8 @@ export function activate(context: ExtensionContext) {
     context.subscriptions.push(disposable);
 }
 
+const RECENTLY_USED_KEY = "relativePath.recentlyUsed";
+
 class RelativePath {
     private _fileNames: string[];
     private _truncated: boolean;
@@ -44,8 +49,10 @@ class RelativePath {
     private _workspacePath: string;
     private _configuration: WorkspaceConfiguration;
     private _tokenSource: CancellationTokenSource;
+    private _state: Memento;
 
-    constructor() {
+    constructor(state: Memento) {
+        this._state = state;
         this._fileNames = null;
         this._truncated = false;
         this._tokenSource = null;
@@ -253,13 +260,32 @@ class RelativePath {
         placeHolder?: string
     ): void {
         if (items) {
-            let paths: QuickPickItem[] = items.map((val: string) => {
-                let item: QuickPickItem = {
-                    description: val.replace(this._workspacePath, ""),
-                    label: val.split("/").pop(),
-                };
-                return item;
+            const toQuickPickItem = (val: string): QuickPickItem => ({
+                description: val.replace(this._workspacePath, ""),
+                label: val.split("/").pop(),
             });
+
+            // Surface the paths the user picked before above the rest of the
+            // list, mirroring VS Code's own "recently opened" behavior.
+            const { recent, rest } = this._configuration.get("showRecentlyUsed")
+                ? partitionByRecency(items, this._state.get(RECENTLY_USED_KEY))
+                : { recent: [], rest: items };
+
+            const paths: QuickPickItem[] =
+                recent.length > 0
+                    ? [
+                          {
+                              label: "recently used",
+                              kind: QuickPickItemKind.Separator,
+                          },
+                          ...recent.map(toQuickPickItem),
+                          {
+                              label: "other files",
+                              kind: QuickPickItemKind.Separator,
+                          },
+                          ...rest.map(toQuickPickItem),
+                      ]
+                    : items.map(toQuickPickItem);
 
             let pickResult: Thenable<QuickPickItem>;
             pickResult = window.showQuickPick(paths, {
@@ -294,6 +320,13 @@ class RelativePath {
     private returnRelativeLink(item: QuickPickItem, editor: TextEditor): void {
         if (item) {
             const targetPath = item.description;
+            this._state.update(
+                RECENTLY_USED_KEY,
+                recordRecentPath(
+                    this._state.get(RECENTLY_USED_KEY),
+                    `${this._workspacePath}${targetPath}`
+                )
+            );
             const currentItemPath = editor.document.fileName
                 .replace(/\\/g, "/")
                 .replace(this._workspacePath, "");
