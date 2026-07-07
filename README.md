@@ -65,6 +65,10 @@ They can be set in user preferences (`ctrl+,` or `cmd+,`) or workspace settings 
 // truncated. Set to 0 for no limit.
 "relativePath.maxFilesCached": 100000,
 
+// Show a 'recently used' section with your last picked paths at the top of
+// the file picker.
+"relativePath.showRecentlyUsed": true,
+
 // Removes the leading ./ character when the path is pointing to a parent folder.
 "relativePath.removeLeadingDot": true,
 
