@@ -22,6 +22,7 @@ import {
     collectExcludeGlobs,
     normalizeIncludeGlob,
 } from "./globs";
+import { hasAnyFuzzyMatch } from "./picker-suggestions";
 import { partitionByRecency, recordRecentPath } from "./recent-paths";
 import { replaceSelections } from "./replace-selections";
 import { isTruncated, resolveMaxResults } from "./search-limit";
@@ -45,6 +46,12 @@ export function activate(context: ExtensionContext) {
 }
 
 const RECENTLY_USED_KEY = "relativePath.recentlyUsed";
+
+// How long the picker waits after the last keystroke before deciding the query
+// matches nothing and swapping in "did you mean" suggestions. Short enough to
+// feel live, long enough that mid-word typing (x -> xy -> xyz) doesn't flash a
+// suggestion list you're about to type past (issue #84).
+const SUGGESTION_DEBOUNCE_MS = 150;
 
 class RelativePath {
     private _fileNames: string[];
@@ -305,46 +312,115 @@ class RelativePath {
         editor: TextEditor,
         placeHolder?: string
     ): void {
-        if (items) {
-            const toQuickPickItem = (val: string): QuickPickItem => ({
-                description: val.replace(this._workspacePath, ""),
-                label: val.split("/").pop(),
-            });
-
-            // Surface the paths the user picked before above the rest of the
-            // list, mirroring VS Code's own "recently opened" behavior.
-            const { recent, rest } = this._configuration.get("showRecentlyUsed")
-                ? partitionByRecency(items, this._state.get(RECENTLY_USED_KEY))
-                : { recent: [], rest: items };
-
-            const paths: QuickPickItem[] =
-                recent.length > 0
-                    ? [
-                          {
-                              label: "recently used",
-                              kind: QuickPickItemKind.Separator,
-                          },
-                          ...recent.map(toQuickPickItem),
-                          {
-                              label: "other files",
-                              kind: QuickPickItemKind.Separator,
-                          },
-                          ...rest.map(toQuickPickItem),
-                      ]
-                    : items.map(toQuickPickItem);
-
-            let pickResult: Thenable<QuickPickItem>;
-            pickResult = window.showQuickPick(paths, {
-                matchOnDescription: true,
-                placeHolder:
-                    placeHolder ?? `Type to filter ${items.length} files`,
-            });
-            pickResult.then((item: QuickPickItem) =>
-                this.returnRelativeLink(item, editor)
-            );
-        } else {
+        if (!items) {
             window.showInformationMessage("No files to show.");
+            return;
         }
+
+        const toQuickPickItem = (val: string): QuickPickItem => ({
+            description: val.replace(this._workspacePath, ""),
+            label: val.split("/").pop(),
+        });
+
+        // Surface the paths the user picked before above the rest of the
+        // list, mirroring VS Code's own "recently opened" behavior.
+        const { recent, rest } = this._configuration.get("showRecentlyUsed")
+            ? partitionByRecency(items, this._state.get(RECENTLY_USED_KEY))
+            : { recent: [], rest: items };
+
+        const basePaths: QuickPickItem[] =
+            recent.length > 0
+                ? [
+                      {
+                          label: "recently used",
+                          kind: QuickPickItemKind.Separator,
+                      },
+                      ...recent.map(toQuickPickItem),
+                      {
+                          label: "other files",
+                          kind: QuickPickItemKind.Separator,
+                      },
+                      ...rest.map(toQuickPickItem),
+                  ]
+                : items.map(toQuickPickItem);
+
+        const basePlaceholder =
+            placeHolder ?? `Type to filter ${items.length} files`;
+
+        // The relative paths VS Code's filter matches against (label +
+        // description, with matchOnDescription on). Comparing the query to
+        // these tells us when the native filter would come up empty so we can
+        // swap in "did you mean" suggestions instead.
+        const candidates = items.map((item) =>
+            item.replace(this._workspacePath, "")
+        );
+
+        // A managed quick pick, not the fire-and-forget window.showQuickPick,
+        // so we can watch typing and inject closest-match suggestions the
+        // moment the query stops matching any file (issue #84).
+        const quickPick = window.createQuickPick();
+        quickPick.matchOnDescription = true;
+        quickPick.placeholder = basePlaceholder;
+        quickPick.items = basePaths;
+
+        let debounce: ReturnType<typeof setTimeout> | undefined;
+        let showingSuggestions = false;
+
+        const restoreBase = () => {
+            if (showingSuggestions) {
+                quickPick.items = basePaths;
+                quickPick.placeholder = basePlaceholder;
+                showingSuggestions = false;
+            }
+        };
+
+        quickPick.onDidChangeValue((value) => {
+            if (debounce) {
+                clearTimeout(debounce);
+            }
+
+            // Let VS Code's native filter handle the happy path; only step in
+            // once the user pauses, so suggestions don't flash mid-word. The
+            // decision is recomputed from the immutable base list every time,
+            // so it toggles back to real matches as the user keeps typing.
+            debounce = setTimeout(() => {
+                if (value === "" || hasAnyFuzzyMatch(value, candidates)) {
+                    restoreBase();
+                    return;
+                }
+
+                const suggestions = getClosestMatches(value, items);
+                quickPick.items = [
+                    {
+                        label: "did you mean",
+                        kind: QuickPickItemKind.Separator,
+                    },
+                    ...suggestions.map((suggestion) => ({
+                        ...toQuickPickItem(suggestion),
+                        // These names don't contain the typed text by
+                        // definition, so force them past VS Code's filter.
+                        alwaysShow: true,
+                    })),
+                ];
+                quickPick.placeholder = `No files match "${value}". Showing the ${suggestions.length} closest names.`;
+                showingSuggestions = true;
+            }, SUGGESTION_DEBOUNCE_MS);
+        });
+
+        quickPick.onDidAccept(() => {
+            const [selected] = quickPick.selectedItems;
+            quickPick.hide();
+            this.returnRelativeLink(selected, editor);
+        });
+
+        quickPick.onDidHide(() => {
+            if (debounce) {
+                clearTimeout(debounce);
+            }
+            quickPick.dispose();
+        });
+
+        quickPick.show();
     }
 
     // Check if the current extension should be excluded
