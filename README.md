@@ -47,10 +47,11 @@ They can be set in user preferences (`ctrl+,` or `cmd+,`) or workspace settings 
 	"**/objd/**"
 ],
 
-// Also hide files matched by VS Code's built-in `files.exclude` and/or
-// `search.exclude` settings, so you don't have to duplicate them in
-// `relativePath.ignore`. One of: "both" (default), "files", "search", "none".
-"relativePath.useBuiltInExcludes": "both",
+// Also hide files matched by VS Code's built-in `search.exclude`, so you don't
+// have to duplicate those globs in `relativePath.ignore`. (`files.exclude` is
+// always respected -- VS Code applies it to the file scan regardless.) Set to
+// false to use only `relativePath.ignore` plus `files.exclude`.
+"relativePath.respectSearchExclude": true,
 
 // Excludes the extension from the relative path url (Useful for systemjs imports).
 "relativePath.removeExtension": false,
