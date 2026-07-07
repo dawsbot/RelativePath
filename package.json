@@ -103,6 +103,11 @@
                     "type": "integer",
                     "default": 1000,
                     "description": "Max number of files searched in quick filter. Extending this may lead to performance issues."
+                },
+                "relativePath.maxFilesCached": {
+                    "type": "integer",
+                    "default": 100000,
+                    "description": "Max number of files scanned and cached from the workspace. Bounds memory and scan time on very large workspaces. The picker indicates when results were truncated. Set to 0 for no limit."
                 }
             }
         }
