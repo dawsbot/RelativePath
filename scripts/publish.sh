@@ -12,7 +12,7 @@
 set -euo pipefail
 
 # ---- config -----------------------------------------------------------------
-REMOTE="dawsbot"                     # git remote that hosts releases
+REMOTE="origin"                      # git remote that hosts releases
 REPO="dawsbot/RelativePath"          # owner/name for the gh CLI
 RELEASE_BRANCH="master"              # releases are cut from here
 PUBLISHER="jakob101"
