@@ -1,3 +1,7 @@
+## Unreleased
+
+-   The picker now also honors VS Code's built-in `search.exclude` by default, so you no longer have to duplicate those globs in `relativePath.ignore`. (`files.exclude` was already applied to the file scan by VS Code; it is now also applied to files created after the scan, keeping the cache consistent.) Opt out with the new `relativePath.respectSearchExclude: false`. (#31)
+
 ## 1.7.0
 
 Big-workspace release: scanning is now bounded, filters are enforced everywhere, and defaults got a refresh.
