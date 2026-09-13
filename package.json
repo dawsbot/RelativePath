@@ -28,9 +28,6 @@
     ],
     "license": "MIT",
     "displayName": "Relative Path",
-    "activationEvents": [
-        "onCommand:extension.relativePath"
-    ],
     "main": "./out/src/extension",
     "contributes": {
         "commands": [
